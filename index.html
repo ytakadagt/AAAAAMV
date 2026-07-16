@@ -2,2438 +2,705 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Dive — Altered Perception MV Platform</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<title>Dive — Altered Perception MV</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
-  html,body{margin:0;padding:0;overflow:hidden;background:#030102;font-family:"Outfit",sans-serif;color:#e5d5d5;}
-  #stage{position:fixed;inset:0;}
-  canvas{display:block;}
-  
-  /* Glassmorphic UI container */
-  #ui{
-    position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
-    display:flex;flex-direction:column;gap:12px;
-    background:rgba(12, 6, 12, 0.75);backdrop-filter:blur(14px);
-    padding:16px 20px;border-radius:8px;
-    border:1px solid rgba(100, 100, 255, 0.15);
-    box-shadow: 0 10px 40px rgba(0,0,0,0.7);
-    max-width:90vw;width:760px;z-index:10;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  
-  .ui-row {
-    display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between;
-  }
-  
-  .ui-group {
-    display:flex;gap:8px;align-items:center;
-  }
-  
-  /* Buttons & Inputs */
-  button, label.btn, select {
-    background:rgba(30, 15, 25, 0.6);color:#e6e6f5;
-    border:1px solid rgba(100, 110, 255, 0.25);
-    padding:8px 14px;border-radius:4px;font-size:12px;font-family:"Outfit",sans-serif;
-    font-weight:400;cursor:pointer;letter-spacing:.04em;
-    transition: all 0.2s ease;
-    outline:none;
-  }
-  button:hover, label.btn:hover, select:hover {
-    background:rgba(50, 20, 40, 0.8);
-    border-color:rgba(120, 120, 255, 0.45);
-    box-shadow:0 0 10px rgba(100,100,255,0.15);
-  }
-  button:active, select:active {
-    transform: scale(0.97);
-  }
-  
-  button.recording {
-    background:rgba(20, 20, 180, 0.85);color:#fff;border-color:#3b3bff;
-    box-shadow: 0 0 15px rgba(59, 59, 255, 0.4);
-    animation: pulseBlue 1.5s infinite alternate;
-  }
-  @keyframes pulseBlue {
-    from { box-shadow: 0 0 8px rgba(50,50,255,0.3); }
-    to { box-shadow: 0 0 18px rgba(50,50,255,0.7); }
-  }
-
-  input[type=file]{display:none;}
-  
-  .slidewrap{
-    display:flex;flex-direction:column;color:#aaaaca;font-size:10px;
-    align-items:flex-start;gap:4px;min-width:90px;
-  }
-  .slidewrap span { font-weight:600; text-transform:uppercase; letter-spacing:0.05em; font-family:"Share Tech Mono",monospace; }
-  input[type=range]{
-    width:100%;accent-color:#66c;background:rgba(255,255,255,0.07);
-    height:4px;border-radius:2px;border:none;outline:none;
-  }
-  
-  /* (mode selectors removed) */
-  
-  /* Header overlays */
-  #title{
-    position:fixed;top:20px;left:50%;transform:translateX(-50%);
-    color:#bababa;letter-spacing:.5em;font-size:14px;font-weight:300;
-    text-transform:uppercase;z-index:10;text-align:center;
-    text-shadow:0 0 10px rgba(100,100,255,0.2);
-  }
-  #status{
-    position:fixed;top:48px;left:50%;transform:translateX(-50%);
-    color:#a0a0b0;font-size:11px;font-family:"Share Tech Mono",monospace;
-    z-index:10;text-align:center;background:rgba(0,0,0,0.4);
-    padding:4px 12px;border-radius:12px;border:1px solid rgba(100,100,255,0.05);
-  }
-  
-  /* Readouts */
-  #hud{
-    position:fixed;top:20px;right:20px;
-    display:flex;flex-direction:column;align-items:flex-end;gap:4px;
-    font-family:"Share Tech Mono",monospace;font-size:11px;z-index:10;
-    color:#b5b5c5;background:rgba(10,5,12,0.5);padding:8px 12px;
-    border-radius:4px;border:1px solid rgba(100,100,255,0.08);
-  }
-  .hud-item span { color:#8080ff; }
-  
-  /* Recording Overlay details */
-  #recInfo{
-    position:fixed;top:110px;right:20px;    color:#8080ff;
-    font-family:"Share Tech Mono",monospace;font-size:11px;opacity:0.95;
-    z-index:10;text-align:right;background:rgba(5,5,20,0.7);
-    padding:6px 10px;border-radius:4px;border:1px solid rgba(100,0,255,0.25);
-    display:none;
-  }
-  #recInfo a{color:#ccccff;text-decoration:underline;font-weight:bold;}
-
-  /* (renderOverlay removed) */
-
-  /* Utilities */
-  .hidden { display:none !important; }
+html,body{margin:0;padding:0;overflow:hidden;background:#030102;font-family:"Outfit",sans-serif;color:#e5d5d5;}
+#stage{position:fixed;inset:0;}
+canvas{display:block;}
+#ui{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
+  display:flex;flex-direction:column;gap:10px;
+  background:rgba(12,6,12,0.8);backdrop-filter:blur(14px);
+  padding:14px 18px;border-radius:8px;
+  border:1px solid rgba(100,100,255,0.15);
+  box-shadow:0 10px 40px rgba(0,0,0,0.7);
+  max-width:95vw;width:760px;z-index:10;
+}
+.ui-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between;}
+.ui-group{display:flex;gap:8px;align-items:center;}
+button,label.btn{background:rgba(30,15,25,0.6);color:#e6e6f5;border:1px solid rgba(100,110,255,0.25);padding:7px 12px;border-radius:4px;font-size:12px;font-family:"Outfit",sans-serif;cursor:pointer;outline:none;}
+button:hover{background:rgba(50,20,40,0.8);border-color:rgba(120,120,255,0.45);}
+button.recording{background:rgba(20,20,180,0.85);color:#fff;border-color:#3b3bff;}
+input[type=file]{display:none;}
+.slidewrap{display:flex;flex-direction:column;color:#aaaaca;font-size:10px;align-items:flex-start;gap:4px;min-width:90px;}
+.slidewrap span{font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-family:"Share Tech Mono",monospace;}
+input[type=range]{width:100%;accent-color:#66c;background:rgba(255,255,255,0.07);height:4px;border-radius:2px;border:none;outline:none;}
+#title{position:fixed;top:20px;left:50%;transform:translateX(-50%);color:#bababa;letter-spacing:.5em;font-size:14px;font-weight:300;text-transform:uppercase;z-index:10;text-shadow:0 0 10px rgba(100,100,255,0.2);}
+#status{position:fixed;top:48px;left:50%;transform:translateX(-50%);color:#a0a0b0;font-size:11px;font-family:"Share Tech Mono",monospace;z-index:10;background:rgba(0,0,0,0.4);padding:4px 12px;border-radius:12px;}
+#hud{position:fixed;top:20px;right:20px;display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-family:"Share Tech Mono",monospace;font-size:11px;z-index:10;color:#b5b5c5;background:rgba(10,5,12,0.5);padding:8px 12px;border-radius:4px;}
+.hud-item span{color:#8080ff;}
+#recInfo{position:fixed;top:110px;right:20px;color:#8080ff;font-family:"Share Tech Mono",monospace;font-size:11px;z-index:10;text-align:right;background:rgba(5,5,20,0.7);padding:6px 10px;border-radius:4px;display:none;}
+#recInfo a{color:#ccccff;text-decoration:underline;}
 </style>
 </head>
 <body>
 <div id="title">Dive — Altered Perception</div>
 <div id="status">システム初期化中...</div>
-
 <div id="hud">
   <div class="hud-item">浸食度: <span id="corruptVal">0%</span></div>
-  <div class="hud-item">経過時間: <span id="timeVal">0:00</span> / <span id="durationVal">33:33</span></div>
-  <div class="hud-item">フレーム: <span id="frameVal">—</span></div>
+  <div class="hud-item">経過: <span id="timeVal">0:00</span> / <span id="durationVal">33:33</span></div>
   <div class="hud-item">画質: <span id="fpsVal">— fps</span></div>
 </div>
-
 <div id="recInfo"></div>
-
-<!-- (render overlay removed) -->
-
 <div id="stage"></div>
-
 <div id="ui">
-  <!-- Top Row: Mode Selection and Setup -->
   <div class="ui-row">
     <div class="ui-group">
-      <label class="btn">音楽を読み込む<input type="file" id="fileInput" accept="audio/*"></label>
-      <button id="micBtn">マイク入力</button>
+      <label class="btn">音楽<input type="file" id="fileInput" accept="audio/*"></label>
+      <button id="micBtn">マイク</button>
+      <button id="playBtn" style="min-width:90px;font-weight:600;">再生 / 停止</button>
+      <button id="resetBtn">リセット</button>
+      <button id="recBtn">● 録画</button>
     </div>
   </div>
-  
-  <!-- Middle Row: Context-dependent Controls -->
   <div class="ui-row">
-    <!-- Real-time specific controls -->
-    <div class="ui-group" id="realtimeControls">
-      <button id="playBtn" style="min-width:90px;font-weight:600;">再生 / 一時停止</button>
-      <button id="resetBtn">やり直し</button>
-      <button id="recBtn">● 録画開始 (WebM)</button>
-    </div>
-
-    <!-- Common settings -->
     <div class="ui-group">
-      <div class="slidewrap">
-        <span>沈む速度 <small id="lblSink">30</small></span>
-        <input type="range" id="sinkSpeed" min="0" max="100" value="30">
-      </div>
-      <div class="slidewrap">
-        <span>崩壊速度 <small id="lblCorr">50</small></span>
-        <input type="range" id="corruptSpeed" min="0" max="100" value="50">
-      </div>
-      <div class="slidewrap">
-        <span>残像量 <small id="lblTrail">85</small></span>
-        <input type="range" id="trailAmount" min="0" max="95" value="85">
-      </div>
+      <div class="slidewrap"><span>沈む速度 <small id="lblSink">30</small></span><input type="range" id="sinkSpeed" min="0" max="100" value="30"></div>
+      <div class="slidewrap"><span>崩壊速度 <small id="lblCorr">50</small></span><input type="range" id="corruptSpeed" min="0" max="100" value="50"></div>
+      <div class="slidewrap"><span>残像 <small id="lblTrail">70</small></span><input type="range" id="trailAmount" min="0" max="95" value="70"></div>
     </div>
   </div>
-  
-  <!-- Seek Bar -->
   <div class="ui-row" style="gap:8px;align-items:center;">
-    <span id="seekTime" style="font-family:'Share Tech Mono',monospace;font-size:11px;min-width:42px;">0:00</span>
+    <span id="seekTime" style="font-family:monospace;font-size:11px;min-width:42px;">0:00</span>
     <input type="range" id="seekBar" min="0" max="1000" value="0" style="flex:1;height:6px;cursor:pointer;">
-    <span id="seekDuration" style="font-family:'Share Tech Mono',monospace;font-size:11px;min-width:42px;text-align:right;">33:33</span>
+    <span id="seekDur" style="font-family:monospace;font-size:11px;min-width:42px;text-align:right;">33:33</span>
   </div>
 </div>
 
-<!-- Three.js and FBX Loader Libraries -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fflate@0.6.10/umd/index.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
 <script>
 (function(){
-  // --- UI Elements ---
-  const statusEl = document.getElementById('status');
-  const corruptValEl = document.getElementById('corruptVal');
-  const timeValEl = document.getElementById('timeVal');
-  const durationValEl = document.getElementById('durationVal');
-  const frameValEl = document.getElementById('frameVal');
-  const fpsValEl = document.getElementById('fpsVal');
-  const recInfo = document.getElementById('recInfo');
-  
-  const playBtn = document.getElementById('playBtn');
-  const recBtn = document.getElementById('recBtn');
-  const resetBtn = document.getElementById('resetBtn');
-  
-  const sinkSpeedSlider = document.getElementById('sinkSpeed');
-  const corruptSpeedSlider = document.getElementById('corruptSpeed');
-  const trailSlider = document.getElementById('trailAmount');
-  
-  const seekBar = document.getElementById('seekBar');
-  const seekTimeEl = document.getElementById('seekTime');
-  const seekDurationEl = document.getElementById('seekDuration');
-  let isSeeking = false;
-  
-  const lblSink = document.getElementById('lblSink');
-  const lblCorr = document.getElementById('lblCorr');
-  const lblTrail = document.getElementById('lblTrail');
+const statusEl=document.getElementById('status');
+const corruptValEl=document.getElementById('corruptVal');
+const timeValEl=document.getElementById('timeVal');
+const durationValEl=document.getElementById('durationVal');
+const fpsValEl=document.getElementById('fpsVal');
+const recInfo=document.getElementById('recInfo');
+const playBtn=document.getElementById('playBtn');
+const recBtn=document.getElementById('recBtn');
+const resetBtn=document.getElementById('resetBtn');
+const sinkSpeedSlider=document.getElementById('sinkSpeed');
+const corruptSpeedSlider=document.getElementById('corruptSpeed');
+const trailSlider=document.getElementById('trailAmount');
+const seekBar=document.getElementById('seekBar');
+const seekTimeEl=document.getElementById('seekTime');
+const seekDurEl=document.getElementById('seekDur');
+let isSeeking=false;
+sinkSpeedSlider.oninput=()=>document.getElementById('lblSink').textContent=sinkSpeedSlider.value;
+corruptSpeedSlider.oninput=()=>document.getElementById('lblCorr').textContent=corruptSpeedSlider.value;
+trailSlider.oninput=()=>document.getElementById('lblTrail').textContent=trailSlider.value;
 
-  // Slider value displays
-  sinkSpeedSlider.addEventListener('input', () => lblSink.textContent = sinkSpeedSlider.value);
-  corruptSpeedSlider.addEventListener('input', () => lblCorr.textContent = corruptSpeedSlider.value);
-  trailSlider.addEventListener('input', () => lblTrail.textContent = trailSlider.value);
+seekBar.addEventListener('mousedown',()=>{isSeeking=true;});
+seekBar.addEventListener('touchstart',()=>{isSeeking=true;});
+seekBar.addEventListener('input',()=>{
+  const t=(seekBar.value/1000)*trackDuration;
+  if(audioEl&&isFinite(audioEl.duration))audioEl.currentTime=t;
+  playTime=t;
+  seekTimeEl.textContent=formatTime(t);
+});
+seekBar.addEventListener('mouseup',()=>{isSeeking=false;});
+seekBar.addEventListener('touchend',()=>{isSeeking=false;});
 
-  // Seek bar logic
-  seekBar.addEventListener('mousedown', () => { isSeeking = true; });
-  seekBar.addEventListener('touchstart', () => { isSeeking = true; });
-  seekBar.addEventListener('input', () => {
-    const ratio = seekBar.value / 1000;
-    const seekTo = ratio * trackDuration;
-    if (audioEl && isFinite(audioEl.duration)) {
-      audioEl.currentTime = seekTo;
-    }
-    playTime = seekTo;
-    const m = Math.floor(seekTo / 60);
-    const s = Math.floor(seekTo % 60);
-    seekTimeEl.textContent = `${m}:${String(s).padStart(2,'0')}`;
+function formatTime(t){const m=Math.floor(t/60);const s=Math.floor(t%60);return m+':'+String(s).padStart(2,'0');}
+function updateSeekBar(t){if(isSeeking)return;seekBar.value=Math.round(Math.min(1,t/Math.max(trackDuration,1))*1000);seekTimeEl.textContent=formatTime(t);}
+
+// --- Scene ---
+const stage=document.getElementById('stage');
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x0a0a14,0.06);
+
+const camera=new THREE.PerspectiveCamera(50,window.innerWidth/window.innerHeight,0.1,120);
+camera.position.set(0,6,8);
+
+const renderer=new THREE.WebGLRenderer({antialias:false,alpha:false,preserveDrawingBuffer:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.setSize(window.innerWidth,window.innerHeight);
+stage.appendChild(renderer.domElement);
+
+// --- Post-processing (single pass, no ping-pong) ---
+let rtW=Math.max(64,window.innerWidth);
+let rtH=Math.max(64,window.innerHeight);
+let sceneRT=new THREE.WebGLRenderTarget(rtW,rtH,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter});
+let prevRT=new THREE.WebGLRenderTarget(rtW,rtH,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter});
+
+const postScene=new THREE.Scene();
+const postCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+const postUniforms={
+  tDiffuse:{value:null},tPrev:{value:null},
+  uRes:{value:new THREE.Vector2(rtW,rtH)},
+  uTime:{value:0},uCorr:{value:0},uBass:{value:0},uSurge:{value:0},
+  uTrail:{value:0.7}
+};
+const postMat=new THREE.ShaderMaterial({
+  uniforms:postUniforms,
+  vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.0,1.0);}',
+  fragmentShader:`
+  precision highp float;
+  varying vec2 vUv;
+  uniform sampler2D tDiffuse;uniform sampler2D tPrev;
+  uniform vec2 uRes;uniform float uTime,uCorr,uBass,uSurge,uTrail;
+  float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
+  vec3 rgb2hsv(vec3 c){vec4 K=vec4(0.,-1./3.,2./3.,-1.);vec4 p=mix(vec4(c.bg,K.wz),vec4(c.gb,K.xy),step(c.b,c.g));vec4 q=mix(vec4(p.xyw,c.r),vec4(c.r,p.yzx),step(p.x,c.r));float d=q.x-min(q.w,q.y);return vec3(abs(q.z+(q.w-q.y)/(6.*d+1e-10)),d/(q.x+1e-10),q.x);}
+  vec3 hsv2rgb(vec3 c){vec4 K=vec4(1.,2./3.,1./3.,3.);vec3 p=abs(fract(c.xxx+K.xyz)*6.-K.www);return c.z*mix(K.xxx,clamp(p-K.xxx,0.,1.),c.y);}
+  void main(){
+    vec2 uv=vUv;float corr=clamp(uCorr,0.,1.2);
+    vec2 c=uv-0.5;uv+=c*dot(c,c)*0.12*(corr+uSurge*1.5);
+    vec2 w=vec2(sin(uv.y*7.+uTime*.7),cos(uv.x*6.+uTime*.5))*0.002*corr;uv+=w;
+    vec3 col=texture2D(tDiffuse,uv).rgb;
+    vec2 d=uv-0.5;float ab=0.001+corr*0.004+uBass*0.003;
+    col.r=texture2D(tDiffuse,uv-d*ab).r;col.b=texture2D(tDiffuse,uv+d*ab).b;
+    vec2 pv=vUv;vec2 pd=pv-0.5;float th=0.002*(1.+uBass*2.);
+    vec2 rd=vec2(pd.x*cos(th)-pd.y*sin(th),pd.x*sin(th)+pd.y*cos(th));
+    pv=0.5+rd*0.995;vec3 prev=texture2D(tPrev,pv).rgb;
+    col=mix(col,prev,clamp(uTrail*(0.7+uBass*0.15),0.,0.97));
+    vec3 hsv=rgb2hsv(col);hsv.x=fract(hsv.x+uTime*0.02*corr+uSurge*0.03);
+    hsv.y=mix(hsv.y*0.4,min(hsv.y*1.8,1.),corr);col=hsv2rgb(hsv);
+    float bloom=hash(floor(uv*6.)+floor(uTime*0.3));bloom=smoothstep(0.6,0.95,bloom);
+    col+=vec3(0.02,0.08,0.45)*bloom*corr*(0.2+uBass*0.5)*0.5;
+    float vig=smoothstep(0.95,0.2,length(uv-0.5));col*=mix(vig,1.,0.5)*mix(1.,0.78,corr*0.3);
+    float grain=hash(uv*uRes+uTime*50.)-0.5;col+=grain*mix(0.015,0.06,corr);
+    float drop=step(0.997-corr*0.003,hash(floor(uv*180.)+floor(uTime*12.)));col*=1.-drop*0.8;
+    gl_FragColor=vec4(clamp(col,0.,1.),1.);
+  }`
+});
+postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),postMat));
+
+const screenScene=new THREE.Scene();
+const screenCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+const screenUniforms={tDiffuse:{value:null}};
+const screenMat=new THREE.ShaderMaterial({
+  uniforms:screenUniforms,
+  vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
+  fragmentShader:'precision highp float;varying vec2 vUv;uniform sampler2D tDiffuse;void main(){gl_FragColor=texture2D(tDiffuse,vUv);}'
+});
+screenScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),screenMat));
+
+function applyResolution(){
+  camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();
+  renderer.setPixelRatio(1);renderer.setSize(window.innerWidth,window.innerHeight,true);
+  rtW=window.innerWidth;rtH=window.innerHeight;
+  sceneRT.setSize(rtW,rtH);prevRT.setSize(rtW,rtH);
+  postUniforms.uRes.value.set(rtW,rtH);
+}
+window.addEventListener('resize',applyResolution);
+
+// --- Lighting ---
+scene.add(new THREE.AmbientLight(0x282840,0.8));
+const key=new THREE.PointLight(0x7090c0,1.3,30);key.position.set(3,5,4);scene.add(key);
+const fill=new THREE.PointLight(0x3a4565,0.8,30);fill.position.set(-4,-1,3);scene.add(fill);
+const underLight=new THREE.PointLight(0x14204a,1.0,18);underLight.position.set(0,-3,1);scene.add(underLight);
+
+// --- Materials (no custom vertex shader for perf) ---
+const skinMat=new THREE.MeshStandardMaterial({color:0x8a9ab5,roughness:0.75,metalness:0.05,emissive:0x0c0608,emissiveIntensity:0.12,flatShading:true});
+const lesionMat=new THREE.MeshStandardMaterial({color:0x060c2e,roughness:0.45,metalness:0.1,emissive:0x061818,emissiveIntensity:0.7,flatShading:true});
+const eyeWhiteMat=new THREE.MeshStandardMaterial({color:0xdae2a8,roughness:0.2,emissive:0x4f5228,emissiveIntensity:0.35,flatShading:true});
+const eyePupilMat=new THREE.MeshStandardMaterial({color:0x000010,emissive:0x1144ff,emissiveIntensity:1.8,flatShading:true});
+
+// --- FBX Model ---
+let fbxModel=null,mixer=null;
+const bonesMap={},defaultBonePositions={};
+let tendrilConnectors=[];
+
+const textureLoader=new THREE.TextureLoader();
+const baseColorTex=textureLoader.load('ps2-psx-lowpoly-character/textures/Base_Color.png');
+const bodyColorTex=textureLoader.load('ps2-psx-lowpoly-character/textures/Body_Base_color.png');
+baseColorTex.minFilter=bodyColorTex.minFilter=THREE.LinearFilter;
+baseColorTex.magFilter=bodyColorTex.magFilter=THREE.LinearFilter;
+
+function mapBones(object){
+  let hasBones=false;object.traverse(c=>{if(c.isBone)hasBones=true;});
+  if(hasBones){object.traverse(c=>{if(!c.isBone)return;const n=c.name.toLowerCase();
+    if(n.includes('head'))bonesMap.head=c;else if(n.includes('neck'))bonesMap.neck=c;
+    else if(n.includes('hips')||n.includes('pelvis')||n.includes('root'))bonesMap.hips=c;
+    else if(n.includes('spine2')||n.includes('chest')||n.includes('spine1'))bonesMap.chest=c;
+    else if(n.includes('spine'))bonesMap.spine=c;
+    else if(n.includes('leftarm')||n.includes('upperarm_l')||n.includes('uparm.l'))bonesMap.armL=c;
+    else if(n.includes('rightarm')||n.includes('upperarm_r')||n.includes('uparm.r'))bonesMap.armR=c;
+    else if(n.includes('leftforearm')||n.includes('forearm_l')||n.includes('forearm.l'))bonesMap.forearmL=c;
+    else if(n.includes('rightforearm')||n.includes('forearm_r')||n.includes('forearm.r'))bonesMap.forearmR=c;
+    else if(n.includes('lefthand')||n.includes('hand_l')||n.includes('hand.l'))bonesMap.handL=c;
+    else if(n.includes('righthand')||n.includes('hand_r')||n.includes('hand.r'))bonesMap.handR=c;
+    else if(n.includes('leftupleg')||n.includes('thigh_l')||n.includes('thigh.l'))bonesMap.thighL=c;
+    else if(n.includes('rightupleg')||n.includes('thigh_r')||n.includes('thigh.r'))bonesMap.thighR=c;
+    else if(n.includes('leftleg')||n.includes('calf_l')||n.includes('calf.l')||n.includes('shin.l'))bonesMap.shinL=c;
+    else if(n.includes('rightleg')||n.includes('calf_r')||n.includes('calf.r')||n.includes('shin.r'))bonesMap.shinR=c;
+    else if(n.includes('leftfoot')||n.includes('foot_l')||n.includes('foot.l'))bonesMap.footL=c;
+    else if(n.includes('rightfoot')||n.includes('foot_r')||n.includes('foot.r'))bonesMap.footR=c;
+  });}else{object.traverse(c=>{if(!c.isMesh)return;const n=c.name.toLowerCase();
+    if(n.includes('head')||n.includes('face'))bonesMap.head=c;
+    else if(n.includes('torso')||n.includes('chest')||n.includes('body')||n.includes('hips'))bonesMap.hips=c;
+  });}
+  console.log("Bones:",Object.keys(bonesMap));
+}
+function saveDefaults(){for(const k in bonesMap)if(bonesMap[k])defaultBonePositions[k]=bonesMap[k].position.clone();}
+
+// Tendrils (simplified - fewer points, less math)
+const _ta=new THREE.Vector3(),_tb=new THREE.Vector3(),_td=new THREE.Vector3(),_tt=new THREE.Vector3(),_tn=new THREE.Vector3(),_tbn=new THREE.Vector3(),_tp=new THREE.Vector3();
+class Tendril{
+  constructor(a,b){this.a=a;this.b=b;this.n=8;const pos=new Float32Array(this.n*3);
+    this.line=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0x2255ff,transparent:true,opacity:0,linewidth:1}));
+    this.line.geometry.setAttribute('position',new THREE.BufferAttribute(pos,3));scene.add(this.line);this.seed=Math.random()*100;}
+  update(t,bass,corr){
+    this.a.getWorldPosition(_ta);this.b.getWorldPosition(_tb);
+    const pa=this.line.geometry.attributes.position;
+    _td.subVectors(_tb,_ta);const len=_td.length();if(len<0.01)return;
+    _td.normalize();
+    _tt.set(Math.abs(_td.y)<0.9?0:1,Math.abs(_td.y)<0.9?1:0,0);
+    _tn.crossVectors(_td,_tt).normalize();_tbn.crossVectors(_td,_tn).normalize();
+    for(let i=0;i<this.n;i++){
+      const a=i/(this.n-1);_tp.lerpVectors(_ta,_tb,a);
+      if(a>0&&a<1){const amp=(0.05+corr*0.12+bass*0.08)*Math.sin(a*Math.PI);
+        const w=Math.sin(t*6+a*12+this.seed)*amp;const w2=Math.cos(t*5+a*12+this.seed)*amp;
+        _tp.addScaledVector(_tn,w);_tp.addScaledVector(_tbn,w2);}
+      pa.setXYZ(i,_tp.x,_tp.y,_tp.z);}
+    pa.needsUpdate=true;
+    this.line.material.opacity=(0.15+corr*0.7)*(0.5+bass*0.4);
+    this.line.material.color.setHSL(0.6+Math.sin(t*2)*0.03,1,0.4+bass*0.15);
+  }
+}
+function initTendrils(){
+  tendrilConnectors.forEach(tc=>scene.remove(tc.line));tendrilConnectors=[];
+  if(!fbxModel)return;
+  [[bonesMap.hips,bonesMap.spine],[bonesMap.spine,bonesMap.chest],[bonesMap.chest,bonesMap.neck],[bonesMap.neck,bonesMap.head],
+   [bonesMap.chest,bonesMap.armL],[bonesMap.armL,bonesMap.forearmL],[bonesMap.chest,bonesMap.armR],[bonesMap.armR,bonesMap.forearmR],
+   [bonesMap.hips,bonesMap.thighL],[bonesMap.thighL,bonesMap.shinL],[bonesMap.hips,bonesMap.thighR],[bonesMap.thighR,bonesMap.shinR]
+  ].forEach(([a,b])=>{if(a&&b)tendrilConnectors.push(new Tendril(a,b));});
+}
+
+const loader=new THREE.FBXLoader();
+function loadModel(url){return new Promise((resolve,reject)=>{
+  console.log("[Loader]",url);loader.load(url,fbx=>{
+    let mc=0;fbx.traverse(c=>{if(c.isMesh)mc++;});
+    const box=new THREE.Box3().setFromObject(fbx);const sz=new THREE.Vector3();box.getSize(sz);
+    console.log("[Loader] meshes:",mc,"size:",sz.y.toFixed(2),"anims:",fbx.animations?fbx.animations.length:0);
+    if(sz.y<=0||!isFinite(sz.y)){reject(new Error('bad bounds'));return;}
+    resolve(fbx);
+  },xhr=>{statusEl.textContent='ロード中: '+Math.round(xhr.loaded/xhr.total*100)+'%';},e=>{console.error("[Loader]",e);reject(e);});
+});}
+
+function setupModel(fbx){
+  fbxModel=fbx;
+  const box=new THREE.Box3().setFromObject(fbx);const sz=new THREE.Vector3();box.getSize(sz);
+  if(sz.y>0)fbx.scale.setScalar(1.6/sz.y);
+  fbx.position.set(0,3,0);fbx.rotation.y=Math.PI;scene.add(fbx);
+  mapBones(fbx);saveDefaults();
+  fbx.traverse(child=>{
+    if(!child.isMesh)return;
+    const om=child.material;let hasTex=false;
+    if(om){const ms=Array.isArray(om)?om:[om];hasTex=ms.some(m=>m.map);}
+    if(!hasTex){
+      const n=child.name.toLowerCase();const mn=om?(Array.isArray(om)?om[0].name.toLowerCase():om.name.toLowerCase()):'';
+      let tex=bodyColorTex;
+      if(n.includes('head')||n.includes('face')||n.includes('hair')||n.includes('eye')||mn.includes('head')||mn.includes('face'))tex=baseColorTex;
+      child.material=new THREE.MeshStandardMaterial({map:tex,roughness:0.82,metalness:0.05,flatShading:true,emissive:0x0c0608,emissiveIntensity:0.12,side:THREE.DoubleSide});
+    }else{const ms=Array.isArray(om)?om:[om];ms.forEach(m=>{m.flatShading=true;m.side=THREE.DoubleSide;m.emissive=new THREE.Color(0x0c0608);m.emissiveIntensity=0.12;});}
   });
-  seekBar.addEventListener('mouseup', () => { isSeeking = false; });
-  seekBar.addEventListener('touchend', () => { isSeeking = false; });
+  initTendrils();
+  if(fbx.animations&&fbx.animations.length>0){mixer=new THREE.AnimationMixer(fbx);mixer.clipAction(fbx.animations[0]).play();statusEl.textContent="モデル＆アニメーション読込完了";}
+  else statusEl.textContent="モデル読込完了";
+}
+loadModel('Swimming.fbx').catch(()=>loadModel('ps2-psx-lowpoly-character/source/ACharacter.fbx')).then(setupModel).catch(e=>{
+  console.error("All models failed",e);statusEl.textContent="モデル読込失敗";
+  fbxModel=new THREE.Mesh(new THREE.BoxGeometry(0.8,1.6,0.5),new THREE.MeshStandardMaterial({color:0x8a9ab5,flatShading:true,emissive:0x0c0608,emissiveIntensity:0.3}));
+  fbxModel.position.set(0,3,0);scene.add(fbxModel);
+});
 
-  function updateSeekBar(t) {
-    if (isSeeking) return;
-    const ratio = Math.min(1, t / Math.max(trackDuration, 1));
-    seekBar.value = Math.round(ratio * 1000);
-    const m = Math.floor(t / 60);
-    const s = Math.floor(t % 60);
-    seekTimeEl.textContent = `${m}:${String(s).padStart(2,'0')}`;
+// --- Floating Eyes (reduced count) ---
+const MAX_EYES=6;
+const floatingEyes=[];
+for(let i=0;i<MAX_EYES;i++){
+  const g=new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.07,0.07,0.07),eyeWhiteMat));
+  const pupil=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.03,0.015),eyePupilMat);pupil.position.z=0.036;g.add(pupil);
+  scene.add(g);
+  g.userData={sx:Math.random()*200,sy:Math.random()*200,r:1.3+Math.random()*2,sp:0.35+Math.random()*0.35};
+}
+
+// --- Lesions & Chunks (reduced) ---
+const lesions=[];for(let i=0;i<8;i++){const s=0.015+Math.random()*0.035;const m=new THREE.Mesh(new THREE.IcosahedronGeometry(s,0),lesionMat);m.visible=false;scene.add(m);lesions.push({mesh:m,ph:Math.random()*Math.PI*2});}
+const chunks=[];for(let i=0;i<12;i++){const s=0.04+Math.random()*0.055;const m=new THREE.Mesh(new THREE.IcosahedronGeometry(s,0),lesionMat);m.visible=false;scene.add(m);chunks.push({mesh:m,ph:Math.random()*Math.PI*2});}
+
+// --- Sea ---
+const seaGeo=new THREE.PlaneGeometry(60,60,48,48);seaGeo.rotateX(-Math.PI/2);
+const seaUniforms={uTime:{value:0},uBass:{value:0},uMid:{value:0},uCorr:{value:0}};
+const seaMat=new THREE.ShaderMaterial({uniforms:seaUniforms,side:THREE.DoubleSide,transparent:true,
+  vertexShader:`uniform float uTime,uBass,uCorruption;varying float vH;varying vec3 vP;
+    void main(){vec3 p=position;float w=sin(p.x*.3+uTime)*0.5+cos(p.z*.25+uTime*.8)*.5+sin((p.x+p.z)*.13+uTime*.4)*.4;
+    w*=(0.5+uBass*1.8)*(1.+uCorruption*1.2);p.y+=w;vH=w;vP=p;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}`,
+  fragmentShader:`uniform float uTime,uMid,uCorruption;varying float vH;varying vec3 vP;
+    void main(){vec3 db=vec3(0.01,0.04,0.12);vec3 sb=vec3(0.02,0.08,0.22);
+    vec3 c=mix(db,sb,0.4+0.3*vH);float f=smoothstep(0.3,0.6,vH)*(0.5+uMid*0.5);c+=vec3(0.08,0.12,0.18)*f;
+    c*=(1.-uCorruption*0.3);gl_FragColor=vec4(c,0.88);}`
+});
+const sea=new THREE.Mesh(seaGeo,seaMat);sea.position.y=6;scene.add(sea);
+const sea2=new THREE.Mesh(seaGeo.clone(),seaMat);sea2.position.y=-20;sea2.rotation.y=Math.PI/5;scene.add(sea2);
+
+// Abyss (2 planes to hide bottom)
+const abyssMat=new THREE.MeshBasicMaterial({color:0x010002});
+const abyss1=new THREE.Mesh(new THREE.PlaneGeometry(200,200).rotateX(-Math.PI/2),abyssMat);abyss1.position.y=-10;scene.add(abyss1);
+const abyss2=new THREE.Mesh(new THREE.PlaneGeometry(200,200).rotateX(-Math.PI/2),abyssMat);abyss2.position.y=-4;scene.add(abyss2);
+
+// --- Land Scene ---
+const landGroup=new THREE.Group();landGroup.visible=false;
+const groundMat2=new THREE.MeshStandardMaterial({color:0x4a7a3a,roughness:0.92,flatShading:true,transparent:true,opacity:0});
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(80,80,16,16).rotateX(-Math.PI/2),groundMat2);ground.position.y=-0.5;landGroup.add(ground);
+const skyMat=new THREE.MeshBasicMaterial({color:0x2255aa,side:THREE.BackSide,transparent:true,opacity:0});
+const sky=new THREE.Mesh(new THREE.SphereGeometry(55,12,8),skyMat);sky.position.y=5;landGroup.add(sky);
+const sunLight=new THREE.DirectionalLight(0xfff4d0,0);sunLight.position.set(12,25,8);landGroup.add(sunLight);
+const ambLand=new THREE.AmbientLight(0x8899bb,0);landGroup.add(ambLand);
+scene.add(landGroup);
+const LAND_START=1710,LAND_END=1725;
+let landT=0,landDone=false;
+
+// --- Particles (reduced) ---
+const PCOUNT=120;
+const pGeo=new THREE.BufferGeometry();const pPos=new Float32Array(PCOUNT*3);const pSpd=new Float32Array(PCOUNT);
+for(let i=0;i<PCOUNT;i++){pPos[i*3]=(Math.random()-0.5)*18;pPos[i*3+1]=(Math.random()-0.5)*32;pPos[i*3+2]=(Math.random()-0.5)*18;pSpd[i]=0.12+Math.random()*0.4;}
+pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));
+const pMat=new THREE.PointsMaterial({size:0.04,color:0x6a5488,transparent:true,opacity:0.4,depthWrite:false});
+const bgParts=new THREE.Points(pGeo,pMat);scene.add(bgParts);
+
+const BCOUNT=80;
+const bGeo=new THREE.BufferGeometry();const bPos=new Float32Array(BCOUNT*3);const bVel=new Float32Array(BCOUNT*3);
+for(let i=0;i<BCOUNT;i++){bPos[i*3+1]=-999;}
+bGeo.setAttribute('position',new THREE.BufferAttribute(bPos,3));
+const bMat=new THREE.PointsMaterial({size:0.08,color:0x6688cc,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+const bubbles=new THREE.Points(bGeo,bMat);scene.add(bubbles);
+function triggerSplash(){
+  const pa=bubbles.geometry.attributes.position;bMat.opacity=0.8;
+  for(let i=0;i<BCOUNT;i++){pa.setXYZ(i,camera.position.x+(Math.random()-0.5)*5,5.8+(Math.random()-0.5),camera.position.z-2-Math.random()*4);
+    bVel[i*3]=(Math.random()-0.5)*4;bVel[i*3+1]=4+Math.random()*8;bVel[i*3+2]=(Math.random()-0.5)*4;}
+  pa.needsUpdate=true;
+}
+
+// --- Ring (reduced to 3) ---
+const rings=[];for(let i=0;i<3;i++){
+  const m=new THREE.Mesh(new THREE.RingGeometry(0.1,0.15,24),new THREE.MeshBasicMaterial({color:0x2255ff,transparent:true,opacity:0,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
+  m.visible=false;scene.add(m);rings.push({mesh:m,scale:0,active:false});
+}
+let nextRing=0,lastRingT=0;
+function triggerRing(){const r=rings[nextRing];r.mesh.visible=true;r.mesh.position.set((Math.random()-0.5)*3,3+(Math.random()-0.5)*2,(Math.random()-0.5)*3);r.mesh.lookAt(camera.position);r.scale=0.3;r.active=true;r.mesh.material.color.setHSL(Math.random(),0.8,0.5);nextRing=(nextRing+1)%3;lastRingT=performance.now()/1000;}
+
+// --- Vortex (reduced) ---
+const VC=60;
+const vGeo=new THREE.BufferGeometry();const vPos=new Float32Array(VC*3);const vVel=new Float32Array(VC*3);
+for(let i=0;i<VC;i++){const a=Math.random()*Math.PI*2,r=0.5+Math.random()*3;vPos[i*3]=a;vPos[i*3+1]=(Math.random()-0.5)*8;vPos[i*3+2]=r;vVel[i*3+1]=0.5+Math.random()*2;}
+vGeo.setAttribute('position',new THREE.BufferAttribute(vPos,3));
+const vMat=new THREE.PointsMaterial({size:0.06,color:0x4488ff,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+const vortex=new THREE.Points(vGeo,vMat);scene.add(vortex);
+
+// --- Audio ---
+let audioCtx=null,analyser=null,freqData=null,sourceNode=null,audioEl=null,playbackActive=false;
+let trackDuration=2013,baseRate=0.95/2013,playTime=0;
+let decodedAudioBuffer=null;
+
+function ensureAudio(){if(!audioCtx){audioCtx=new(window.AudioContext||window.webkitAudioContext)();analyser=audioCtx.createAnalyser();analyser.fftSize=1024;analyser.smoothingTimeConstant=0.6;freqData=new Uint8Array(analyser.frequencyBinCount);}}
+function recomputeRate(){baseRate=0.95/Math.max(trackDuration,20);const ds=formatTime(trackDuration);durationValEl.textContent=ds;seekDurEl.textContent=ds;}
+
+// --- Onset Detection ---
+let prevSpec=new Float32Array(256);
+let smoothBass=0,smoothMid=0,smoothTreble=0;
+let onsetBass=0,onsetMid=0,onsetTreble=0,onsetAny=0;
+let surgeEnergy=0;
+let hueAccum=0,corruptionRaw=0,splashTriggered=false;
+
+function getLevels(fd){
+  if(!fd)return{bass:0,mid:0,treble:0,onsetBass:0,onsetMid:0,onsetTreble:0,onsetAny:0};
+  const n=fd.length;const bEnd=Math.floor(n*.1),mEnd=Math.floor(n*.45);
+  let bass=0,mid=0,treble=0;
+  for(let i=0;i<bEnd;i++)bass+=fd[i];bass/=bEnd*255;
+  for(let i=bEnd;i<mEnd;i++)mid+=fd[i];mid/=(mEnd-bEnd)*255;
+  for(let i=mEnd;i<n;i++)treble+=fd[i];treble/=(n-mEnd)*255;
+  // Expand compressed audio
+  bass=Math.pow(Math.max(0,(bass-0.25)/0.75),2.0);
+  mid=Math.pow(Math.max(0,(mid-0.25)/0.75),2.2);
+  treble=Math.pow(Math.max(0,(treble-0.22)/0.78),2.4);
+  smoothBass+=(bass-smoothBass)*0.12;smoothMid+=(mid-smoothMid)*0.12;smoothTreble+=(treble-smoothTreble)*0.12;
+  // Spectral flux (simple, fast)
+  let flux=0,fb=0,fm=0,ft=0;
+  const bs=n/256;
+  for(let i=0;i<256;i++){const bi=Math.min(Math.floor(i*bs),n-1);const c=fd[bi]/255;const p=prevSpec[i];const d=c-p;prevSpec[i]=c;
+    if(d>0){flux+=d*d;if(i<20)fb+=d;else if(i<115)fm+=d;else ft+=d;}}
+  flux=Math.sqrt(flux)*2;
+  const threshold=0.02;
+  const ob=fb>threshold?fb-threshold:0;const om=fm>threshold?fm-threshold:0;const ot=ft>threshold?ft-threshold:0;
+  onsetBass=Math.max(ob*5,onsetBass*0.85);
+  onsetMid=Math.max(om*4,onsetMid*0.82);
+  onsetTreble=Math.max(ot*3.5,onsetTreble*0.8);
+  onsetAny=Math.max(flux*0.8,onsetAny*0.88);
+  return{bass:smoothBass,mid:smoothMid,treble:smoothTreble,onsetBass,onsetMid,onsetTreble,onsetAny};
+}
+
+// --- Auto Load ---
+async function autoLoad(){
+  ensureAudio();statusEl.textContent="音声取得中...";
+  try{const res=await fetch('1st full.wav');if(!res.ok)throw 0;
+    const ab=await res.arrayBuffer();statusEl.textContent="デコード中...";
+    decodedAudioBuffer=await audioCtx.decodeAudioData(ab);
+    trackDuration=decodedAudioBuffer.duration;recomputeRate();
+    audioEl=new Audio();audioEl.src='1st full.wav';audioEl.crossOrigin="anonymous";
+    audioEl.onplay=()=>{playbackActive=true;statusEl.textContent="再生中";};
+    audioEl.onpause=()=>{playbackActive=false;statusEl.textContent="一時停止";};
+    audioEl.onended=()=>{playbackActive=false;statusEl.textContent="終了";};
+    if(sourceNode)sourceNode.disconnect();
+    sourceNode=audioCtx.createMediaElementSource(audioEl);sourceNode.connect(analyser);analyser.connect(audioCtx.destination);
+    statusEl.textContent="準備完了";
+  }catch(e){statusEl.textContent="音声ファイルを読み込んでください";console.log("[AutoLoad]",e);}
+}
+setTimeout(autoLoad,500);
+
+document.getElementById('fileInput').addEventListener('change',async e=>{
+  const file=e.target.files[0];if(!file)return;ensureAudio();
+  if(audioEl)audioEl.pause();playbackActive=false;
+  audioEl=new Audio();audioEl.src=URL.createObjectURL(file);audioEl.crossOrigin="anonymous";
+  audioEl.onloadedmetadata=()=>{if(isFinite(audioEl.duration)&&audioEl.duration>10){trackDuration=audioEl.duration;recomputeRate();}};
+  audioEl.onplay=()=>{playbackActive=true;statusEl.textContent="再生中: "+file.name;};
+  audioEl.onpause=()=>{playbackActive=false;};audioEl.onended=()=>{playbackActive=false;};
+  if(sourceNode)sourceNode.disconnect();sourceNode=audioCtx.createMediaElementSource(audioEl);sourceNode.connect(analyser);analyser.connect(audioCtx.destination);
+  playTime=0;audioCtx.resume().then(()=>audioEl.play());
+});
+
+document.getElementById('micBtn').addEventListener('click',async()=>{
+  try{ensureAudio();const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    if(sourceNode)sourceNode.disconnect();sourceNode=audioCtx.createMediaStreamSource(stream);sourceNode.connect(analyser);
+    audioCtx.resume();playbackActive=true;trackDuration=480;recomputeRate();playTime=0;statusEl.textContent="マイク入力中...";
+  }catch(e){statusEl.textContent="マイクエラー";}
+});
+
+playBtn.addEventListener('click',()=>{if(audioEl){if(audioEl.paused){audioCtx.resume();audioEl.play();}else audioEl.pause();}else{playbackActive=!playbackActive;}});
+
+resetBtn.addEventListener('click',()=>{
+  if(audioEl){audioEl.pause();audioEl.currentTime=0;}playbackActive=false;
+  if(mixer){mixer.stopAllAction();if(fbxModel&&fbxModel.animations&&fbxModel.animations.length>0)mixer.clipAction(fbxModel.animations[0]).play();}
+  corruptionRaw=0;playTime=0;splashTriggered=false;surgeEnergy=0;hueAccum=0;
+  camera.position.set(0,6,8);camera.fov=50;camera.updateProjectionMatrix();
+  scene.fog.color.set(0x0a0a14);scene.fog.density=0.06;
+  if(fbxModel){fbxModel.position.set(0,3,0);fbxModel.rotation.set(0,Math.PI,0);
+    for(const k in bonesMap){const b=bonesMap[k],d=defaultBonePositions[k];if(b&&d)b.position.copy(d);}}
+  skinMat.color.set(0x8a9ab5);skinMat.emissive.set(0x0c0608);skinMat.emissiveIntensity=0.12;
+  renderer.setRenderTarget(prevRT);renderer.clear();
+  postUniforms.uTrail.value=0.7;bMat.opacity=0;
+  lesions.forEach(l=>l.mesh.visible=false);chunks.forEach(c=>c.mesh.visible=false);
+  floatingEyes.forEach(e=>e.visible=false);tendrilConnectors.forEach(tc=>{tc.line.material.opacity=0;});
+  seaUniforms.uCorr.value=0;rings.forEach(r=>{r.active=false;r.mesh.visible=false;});
+  vortexMat.opacity=0;vortex.visible=true;
+  landT=0;landDone=false;landGroup.visible=false;groundMat2.opacity=0;skyMat.opacity=0;sunLight.intensity=0;ambLand.intensity=0;
+  tendrilConnectors.forEach(tc=>{tc.line.visible=true;});
+  seekBar.value=0;seekTimeEl.textContent='0:00';
+  clock.getDelta();clock.start();
+});
+
+// WebM Recorder
+let mediaRec=null,recChunks=[];
+recBtn.addEventListener('click',()=>{
+  if(mediaRec&&mediaRec.state==='recording'){mediaRec.stop();return;}
+  try{const stream=renderer.domElement.captureStream(60);
+    if(audioCtx){try{const dest=audioCtx.createMediaStreamDestination();analyser.connect(dest);dest.stream.getAudioTracks().forEach(tr=>stream.addTrack(tr));}catch(_){}}
+    const mime=MediaRecorder.isTypeSupported('video/webm;codecs=vp9')?'video/webm;codecs=vp9':'video/webm';
+    mediaRec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:12000000});recChunks=[];
+    mediaRec.ondataavailable=e=>{if(e.data&&e.data.size)recChunks.push(e.data);};
+    mediaRec.onstop=()=>{const blob=new Blob(recChunks,{type:mime});const url=URL.createObjectURL(blob);
+      recInfo.innerHTML=`${(blob.size/1048576).toFixed(1)}MB · <a href="${url}" download="mv.webm">DL</a>`;recInfo.style.display='block';
+      recBtn.textContent='● 録画';recBtn.classList.remove('recording');};
+    mediaRec.start(250);recBtn.textContent='■ 停止';recBtn.classList.add('recording');recInfo.style.display='block';recInfo.textContent='録画中...';playTime=0;
+  }catch(e){recInfo.textContent='エラー: '+e.message;recInfo.style.display='block';}
+});
+
+// --- Draw Frame ---
+const _lookAt=new THREE.Vector3();
+function drawFrame(time,dt,fd){
+  const L=getLevels(fd);
+  const energy=(L.bass+L.mid+L.treble)/3;
+
+  surgeEnergy=Math.max(L.onsetAny,surgeEnergy-dt*2);
+  const progress=getProgress(time);
+  const variety=Math.sin(progress*Math.PI*5)*0.5+0.5;
+  const rateMul=corruptSpeedSlider.value/50;
+  corruptionRaw+=dt*(baseRate*rateMul*0.85+energy*0.006+L.onsetAny*0.008);
+  const corr=Math.min(corruptionRaw,1.2);
+  corruptValEl.textContent=Math.round(Math.min(corr,1)*100)+'%';
+  hueAccum+=dt*0.04*(0.5+variety*0.8)+L.onsetAny*0.002;
+
+  const fogA=new THREE.Color(0x0a0a14);
+  const fogB=new THREE.Color(0x050108);
+
+  // Track model
+  if(fbxModel){
+    if(bonesMap.hips)bonesMap.hips.getWorldPosition(_lookAt);else fbxModel.getWorldPosition(_lookAt);
+    _lookAt.y+=0.42;
+  }else _lookAt.set(0,3,0);
+
+  // Camera: nearly static
+  if(time<2.5){
+    const r=time/2.5;camera.position.y=35-Math.pow(r,2)*29;camera.position.x=0;camera.position.z=0.1;
+    camera.lookAt(_lookAt);scene.fog.color.copy(fogA);scene.fog.density=0.06;splashTriggered=false;bMat.opacity=0;
+  }else{
+    if(!splashTriggered){triggerSplash();splashTriggered=true;surgeEnergy=1;}
+    const ut=time-2.5;
+    // Fixed camera position after dive
+    const tgtY=6-Math.min(ut*0.35,6);
+    camera.position.y+=(tgtY-camera.position.y)*0.03;
+    camera.position.x*=0.98;camera.position.z+=(8-camera.position.z)*0.03;
+    camera.lookAt(_lookAt);
+    scene.fog.color.copy(fogA).lerp(fogB,Math.min(ut*0.4,1));
+    scene.fog.density=0.06+Math.min(corr,1)*0.015;
   }
 
-  // --- Rendering & Scene Configuration ---
-  const stage = document.getElementById('stage');
-  const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x0f0e0d, 0.09);
+  camera.fov=50+surgeEnergy*1.2;camera.updateProjectionMatrix();
 
-  const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
-  camera.position.set(0, 35.0, 8.5);
+  // Lighting
+  key.color.setHSL(THREE.MathUtils.lerp(0.58,hueAccum%1,Math.min(corr,1)),0.5,0.55);
+  fill.color.setHSL(THREE.MathUtils.lerp(0.52,(hueAccum+0.5)%1,Math.min(corr,1)),0.4,0.4);
+  key.intensity=1.1+L.bass*1.2+Math.min(corr,1)*0.8+surgeEnergy*0.8+L.onsetBass*1.0;
+  fill.intensity=0.8+L.mid*0.8+L.onsetMid*0.6;
+  underLight.intensity=0.5+corr*1.2+L.bass*0.4+surgeEnergy*0.5;
 
-  const renderer = new THREE.WebGLRenderer({
-    antialias: false,
-    alpha: false,
-    preserveDrawingBuffer: true,
-    powerPreference: 'high-performance'
-  });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  stage.appendChild(renderer.domElement);
+  // Sea
+  seaUniforms.uTime.value=time;seaUniforms.uBass.value=L.bass;seaUniforms.uMid.value=L.mid;seaUniforms.uCorr.value=Math.min(corr,1);
 
-  // Resolution and rendering targets for ping-pong feedback (trails) — PS2-style low res
-  let RES_DIVISOR = 1.0;
-  let rtW = Math.max(64, Math.floor(window.innerWidth / RES_DIVISOR));
-  let rtH = Math.max(64, Math.floor(window.innerHeight / RES_DIVISOR));
+  // Model color
+  skinMat.emissive.setHSL(0.6,1,progress*0.3+L.bass*0.1+L.onsetBass*0.08);
+  skinMat.emissiveIntensity=0.1+progress*1.2+L.bass*0.3+L.onsetAny*0.3;
 
-  let sceneRT = new THREE.WebGLRenderTarget(rtW, rtH, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
-  let rt1 = new THREE.WebGLRenderTarget(rtW, rtH, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
-  let rt2 = new THREE.WebGLRenderTarget(rtW, rtH, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
-
-  // Post-processing setup
-  const postScene = new THREE.Scene();
-  const postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  const postUniforms = {
-    tDiffuse: { value: null },
-    tPrevFrame: { value: null },
-    uResolution: { value: new THREE.Vector2(rtW, rtH) },
-    uTime: { value: 0 },
-    uCorruption: { value: 0 },
-    uBass: { value: 0 },
-    uSurge: { value: 0 },
-    uTrailAmount: { value: 0.85 }
-  };
-
-  const postMat = new THREE.ShaderMaterial({
-    uniforms: postUniforms,
-    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy,0.0,1.0); }`,
-    fragmentShader: `
-      precision highp float;
-      varying vec2 vUv;
-      uniform sampler2D tDiffuse;
-      uniform sampler2D tPrevFrame;
-      uniform vec2 uResolution;
-      uniform float uTime;
-      uniform float uCorruption;
-      uniform float uBass;
-      uniform float uSurge;
-      uniform float uTrailAmount;
-
-      vec3 rgb2hsv(vec3 c){
-        vec4 K=vec4(0.0,-1.0/3.0,2.0/3.0,-1.0);
-        vec4 p=mix(vec4(c.bg,K.wz), vec4(c.gb,K.xy), step(c.b,c.g));
-        vec4 q=mix(vec4(p.xyw,c.r), vec4(c.r,p.yzx), step(p.x,c.r));
-        float d=q.x-min(q.w,q.y); float e=1.0e-10;
-        return vec3(abs(q.z+(q.w-q.y)/(6.0*d+e)), d/(q.x+e), q.x);
-      }
-      vec3 hsv2rgb(vec3 c){
-        vec4 K=vec4(1.0,2.0/3.0,1.0/3.0,3.0);
-        vec3 p=abs(fract(c.xxx+K.xyz)*6.0-K.www);
-        return c.z*mix(K.xxx, clamp(p-K.xxx,0.0,1.0), c.y);
-      }
-      float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)))*43758.5453); }
-      float hash13(vec3 p3){ p3=fract(p3*0.1031); p3+=dot(p3, p3.yzx+33.33); return fract((p3.x+p3.y)*p3.z); }
-
-      void main(){
-        vec2 uv = vUv;
-        float corr = clamp(uCorruption, 0.0, 1.2);
-
-        // Fisheye/Lens distortion (Altered perception)
-        vec2 center = uv - 0.5;
-        float dist = length(center);
-        uv += center * dist * dist * 0.18 * (corr + uSurge * 2.0);
-
-        // Ripple warp
-        vec2 warp = vec2(
-          sin(uv.y*9.0+uTime*0.9) + sin(uv.y*3.1-uTime*0.4),
-          cos(uv.x*8.0+uTime*0.7) + cos(uv.x*2.6+uTime*0.5)
-        ) * 0.0032 * corr;
-        uv += warp;
-
-        // Base frame color
-        vec3 color = texture2D(tDiffuse, uv).rgb;
-
-        // Chromatic Aberration
-        vec2 dir = uv - 0.5;
-        float aberr = 0.0015 + corr*0.005 + uBass*0.004 + uSurge*0.016;
-        float rr = texture2D(tDiffuse, uv - dir*aberr).r;
-        float bb = texture2D(tDiffuse, uv + dir*aberr).b;
-        color = vec3(rr, color.g, bb);
-
-        // Bit-reduction / dither noise
-        float levels = 32.0;
-        float threshold = hash(floor(uv*uResolution*0.5));
-        color = floor(color*levels + threshold) / levels;
-
-        // Feedback trails (hallucinatory tracers)
-        vec2 prevUv = vUv;
-        vec2 prevDir = prevUv - 0.5;
-        float theta = 0.0025 * (1.0 + uBass * 3.0);
-        float cosT = cos(theta);
-        float sinT = sin(theta);
-        vec2 rotatedDir = vec2(
-          prevDir.x * cosT - prevDir.y * sinT,
-          prevDir.x * sinT + prevDir.y * cosT
-        );
-        prevUv = 0.5 + rotatedDir * (0.993 - uBass * 0.008);
-        vec3 prevColor = texture2D(tPrevFrame, prevUv).rgb;
-        
-        float blend = uTrailAmount * (0.8 + uBass * 0.16);
-        color = mix(color, prevColor, clamp(blend, 0.0, 0.98));
-
-        // HSV Shift
-        vec3 hsv = rgb2hsv(color);
-        hsv.x = fract(hsv.x + uTime*0.03*corr + uSurge*0.04);
-        hsv.y = mix(hsv.y*0.3, min(hsv.y*2.0,1.0), corr);
-        hsv.z = clamp(hsv.z*mix(1.0,1.08,corr), 0.0, 1.0);
-        vec3 vivid = hsv2rgb(hsv);
-        float gray = dot(color, vec3(0.299,0.587,0.114));
-        vec3 sickly = mix(vec3(gray), color, 0.3) * vec3(0.78,0.85,0.8);
-        color = mix(sickly, vivid, corr);
-
-        // Neon glowing spots
-        float bloom = hash(floor(uv*7.0) + floor(uTime*0.4));
-        bloom = smoothstep(0.55, 0.95, bloom);
-        color += vec3(0.03,0.10,0.55)*bloom*corr*(0.25+uBass*0.6)*0.6;
-
-        // Cracks
-        float c1 = hash13(vec3(floor(uv*180.0), floor(uTime*7.0)));
-        float crack = smoothstep(0.985-corr*0.04, 1.0, c1);
-        color -= crack * 0.4 * corr;
-
-        // Blood stains
-        float stain = smoothstep(0.92, 1.0, hash13(vec3(floor(uv*45.0), floor(uTime*3.0))));
-        color += vec3(0.05,0.05,0.45) * stain * corr * 0.7;
-
-        // Organic tissues
-        float organ = smoothstep(0.55, 0.95, hash(floor(uv*3.5) + floor(uTime*0.25)));
-        color += vec3(0.15,0.05,0.6) * organ * corr * (0.15 + uBass*0.4);
-
-        // Vignette
-        float pulse = 1.0 + uBass*0.06*corr + uSurge*0.05;
-        float vig = smoothstep(0.98, 0.18, length(uv-0.5)*pulse);
-        color *= mix(vig, 1.0, 0.4) * mix(1.0, 0.72, corr*0.4);
-
-        // Grain
-        float grain = hash(uv*uResolution + uTime*55.0) - 0.5;
-        color += grain * mix(0.02, 0.075, corr);
-        color += vec3(0.5,0.15,0.45) * uSurge * 0.12;
-
-        // Drop shadow / glitch drops
-        float drop = step(0.998 - corr*0.005, hash(floor(uv*220.0)+floor(uTime*15.0)));
-        color *= 1.0 - drop * 0.9;
-
-        gl_FragColor = vec4(clamp(color,0.0,1.0), 1.0);
-      }
-    `
-  });
-  postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMat));
-
-  // Direct screen-pass renderer setup
-  const screenScene = new THREE.Scene();
-  const screenCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  const screenUniforms = { tDiffuse: { value: null } };
-  const screenMat = new THREE.ShaderMaterial({
-    uniforms: screenUniforms,
-    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
-    fragmentShader: `
-      precision highp float;
-      varying vec2 vUv;
-      uniform sampler2D tDiffuse;
-      void main() {
-        gl_FragColor = texture2D(tDiffuse, vUv);
-      }
-    `
-  });
-  screenScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), screenMat));
-
-  // --- Dynamic Mode Configuration ---
-  function applyResolution() {
-    let w = window.innerWidth;
-    let h = window.innerHeight;
-
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-
-    renderer.setPixelRatio(1);
-    renderer.setSize(w, h, true);
-
-    rtW = Math.max(64, Math.floor(w / RES_DIVISOR));
-    rtH = Math.max(64, Math.floor(h / RES_DIVISOR));
-
-    sceneRT.setSize(rtW, rtH);
-    rt1.setSize(rtW, rtH);
-    rt2.setSize(rtW, rtH);
-
-    postUniforms.uResolution.value.set(rtW, rtH);
-  }
-
-  window.addEventListener('resize', () => {
-    applyResolution();
-  });
-
-  let mouseX = 0;
-  window.addEventListener('mousemove', e => {
-    mouseX = (e.clientX / window.innerWidth - 0.5);
-  });
-
-  // --- Lighting ---
-  scene.add(new THREE.AmbientLight(0x1a1828, 0.7));
-  const key = new THREE.PointLight(0x6090c0, 1.4, 30); key.position.set(3, 5, 4); scene.add(key);
-  const fill = new THREE.PointLight(0x2a3555, 1.0, 30); fill.position.set(-4, -1, 3); scene.add(fill);
-  const underLight = new THREE.PointLight(0x0a143a, 1.2, 18); underLight.position.set(0, -3, 1); scene.add(underLight);
-
-  // --- PS2 Low-Poly Custom Shader Modifier ---
-  function addRetroBody(material) {
-    material.onBeforeCompile = (shader) => {
-      shader.uniforms.uSnap = { value: 1000.0 };
-      shader.uniforms.uTimeU = { value: 0.0 };
-      shader.uniforms.uOrganicAmp = { value: 0.0 };
-      shader.uniforms.uMutation = { value: 0.0 };
-      
-      shader.vertexShader = 'uniform float uSnap;\nuniform float uTimeU;\nuniform float uOrganicAmp;\nuniform float uMutation;\n' + shader.vertexShader;
-      
-      shader.vertexShader = shader.vertexShader.replace(
-        '#include <begin_vertex>',
-        `
-        #include <begin_vertex>
-        { 
-          float freq = 14.0 + uMutation * 12.0;
-          float spike = sin(position.x * freq) * sin(position.y * freq) * sin(position.z * freq);
-          float sharpSpike = sign(spike) * pow(abs(spike), 0.4) * uMutation * 0.15;
-          
-          float def = sin(position.x*7.0+uTimeU*1.4)*sin(position.y*6.0-uTimeU*1.0)*sin(position.z*8.0+uTimeU*0.8) * uOrganicAmp;
-          
-          transformed += normal * (def + sharpSpike); 
-        }
-        `
-      );
-      shader.vertexShader = shader.vertexShader.replace(
-        '#include <project_vertex>',
-        `
-        #include <project_vertex>
-        { 
-          vec4 snapped = gl_Position;
-          snapped.xyz /= snapped.w;
-          snapped.xy = floor(snapped.xy * uSnap) / uSnap;
-          snapped.xyz *= snapped.w;
-          gl_Position = snapped; 
-        }
-        `
-      );
-      material.userData.shader = shader;
-    };
-  }
-
-  // --- Materials ---
-  const skinBase = new THREE.Color(0xb58a8a);
-  const skinMat = new THREE.MeshStandardMaterial({
-    color: skinBase.clone(), roughness: 0.75, metalness: 0.05,
-    emissive: 0x0c0608, emissiveIntensity: 0.12, flatShading: true
-  });
-  addRetroBody(skinMat);
-
-  const lesionMat = new THREE.MeshStandardMaterial({ 
-    color: 0x060c2e, roughness: 0.45, metalness: 0.1, 
-    emissive: 0x061818, emissiveIntensity: 0.7, flatShading: true 
-  });
-  addRetroBody(lesionMat);
-  
-  const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xdae2a8, roughness: 0.2, emissive: 0x4f5228, emissiveIntensity: 0.35, flatShading: true });
-  const eyePupilMat = new THREE.MeshStandardMaterial({ color: 0x000010, emissive: 0x1144ff, emissiveIntensity: 1.8, flatShading: true });
-
-  // --- Loader Setup for Attached Model ---
-  let fbxModel = null;
-  let mixer = null;
-  const bonesMap = {};
-  const defaultBonePositions = {};
-  let tendrilConnectors = [];
-
-  const textureLoader = new THREE.TextureLoader();
-  const baseColorTex = textureLoader.load('ps2-psx-lowpoly-character/textures/Base_Color.png');
-  const bodyColorTex = textureLoader.load('ps2-psx-lowpoly-character/textures/Body_Base_color.png');
-
-  // Texture filtering for smooth look
-  baseColorTex.minFilter = THREE.LinearFilter;
-  baseColorTex.magFilter = THREE.LinearFilter;
-  bodyColorTex.minFilter = THREE.LinearFilter;
-  bodyColorTex.magFilter = THREE.LinearFilter;
-
-  // Search rig hierarchy for skeleton bones (case-insensitive substring checks)
-  function mapBones(object) {
-    let hasBones = false;
-    object.traverse(child => {
-      if (child.isBone) hasBones = true;
-    });
-
-    if (hasBones) {
-      object.traverse(child => {
-        if (child.isBone) {
-          const name = child.name.toLowerCase();
-          
-          if (name.includes('head')) bonesMap.head = child;
-          else if (name.includes('neck')) bonesMap.neck = child;
-          else if (name.includes('hips') || name.includes('pelvis') || name.includes('root')) bonesMap.hips = child;
-          else if (name.includes('spine2') || name.includes('chest') || name.includes('spine1')) bonesMap.chest = child;
-          else if (name.includes('spine')) bonesMap.spine = child;
-          
-          else if (name.includes('leftshoulder') || name.includes('shoulder_l') || name.includes('shoulder.l')) bonesMap.shoulderL = child;
-          else if (name.includes('rightshoulder') || name.includes('shoulder_r') || name.includes('shoulder.r')) bonesMap.shoulderR = child;
-          
-          else if (name.includes('leftarm') || name.includes('upperarm_l') || name.includes('uparm.l') || name.includes('upper_arm.l')) bonesMap.armL = child;
-          else if (name.includes('rightarm') || name.includes('upperarm_r') || name.includes('uparm.r') || name.includes('upper_arm.r')) bonesMap.armR = child;
-          
-          else if (name.includes('leftforearm') || name.includes('forearm_l') || name.includes('forearm.l') || name.includes('lowarm.l')) bonesMap.forearmL = child;
-          else if (name.includes('rightforearm') || name.includes('forearm_r') || name.includes('forearm.r') || name.includes('lowarm.r')) bonesMap.forearmR = child;
-          
-          else if (name.includes('lefthand') || name.includes('hand_l') || name.includes('hand.l')) bonesMap.handL = child;
-          else if (name.includes('righthand') || name.includes('hand_r') || name.includes('hand.r')) bonesMap.handR = child;
-          
-          else if (name.includes('leftupleg') || name.includes('thigh_l') || name.includes('thigh.l') || name.includes('upleg.l')) bonesMap.thighL = child;
-          else if (name.includes('rightupleg') || name.includes('thigh_r') || name.includes('thigh.r') || name.includes('upleg.r')) bonesMap.thighR = child;
-          
-          else if (name.includes('leftleg') || name.includes('calf_l') || name.includes('calf.l') || name.includes('shin.l') || name.includes('lowerleg.l')) bonesMap.shinL = child;
-          else if (name.includes('rightleg') || name.includes('calf_r') || name.includes('calf.r') || name.includes('shin.r') || name.includes('lowerleg.r')) bonesMap.shinR = child;
-          
-          else if (name.includes('leftfoot') || name.includes('foot_l') || name.includes('foot.l')) bonesMap.footL = child;
-          else if (name.includes('rightfoot') || name.includes('foot_r') || name.includes('foot.r')) bonesMap.footR = child;
-        }
-      });
-    } else {
-      // Fallback: if FBX consists of separate mesh nodes instead of a skeleton
-      object.traverse(child => {
-        if (child.isMesh) {
-          const name = child.name.toLowerCase();
-          if (name.includes('head') || name.includes('face')) bonesMap.head = child;
-          else if (name.includes('neck')) bonesMap.neck = child;
-          else if (name.includes('torso') || name.includes('chest') || name.includes('body') || name.includes('hips')) bonesMap.hips = child;
-          else if (name.includes('leftarm') || name.includes('arm_l') || name.includes('l_arm')) bonesMap.armL = child;
-          else if (name.includes('rightarm') || name.includes('arm_r') || name.includes('r_arm')) bonesMap.armR = child;
-          else if (name.includes('leftleg') || name.includes('leg_l') || name.includes('l_leg')) bonesMap.thighL = child;
-          else if (name.includes('rightleg') || name.includes('leg_r') || name.includes('r_leg')) bonesMap.thighR = child;
-        }
-      });
-    }
-    console.log("Mapped bones:", Object.keys(bonesMap));
-  }
-
-  function saveDefaultBonePositions() {
-    for (const key in bonesMap) {
-      if (bonesMap[key]) {
-        defaultBonePositions[key] = bonesMap[key].position.clone();
-      }
+  // Model sinking & bone separation
+  if(fbxModel&&!landDone){
+    const sinkSpeed=sinkSpeedSlider.value/1000;
+    fbxModel.position.y-=dt*(sinkSpeed*4.5)*(1+L.bass*0.8);
+    fbxModel.rotation.z=Math.PI/2;
+    if(L.onsetBass>0.3){fbxModel.position.x+=(Math.random()-0.5)*L.onsetBass*0.04;}
+    const sep=progress*1.4;
+    for(const k in bonesMap){
+      const bone=bonesMap[k],def=defaultBonePositions[k];if(!bone||!def)continue;
+      const amt=sep*0.5+corr*0.12+L.bass*0.06+L.onsetBass*0.08;
+      let ox=0,oy=0;
+      if(k==='head')oy=amt*1.6;else if(k==='neck')oy=amt*0.8;
+      else if(k==='armL')ox=-amt*1.2;else if(k==='armR')ox=amt*1.2;
+      else if(k==='forearmL')ox=-amt*1.5;else if(k==='forearmR')ox=amt*1.5;
+      else if(k==='handL')ox=-amt*1.8;else if(k==='handR')ox=amt*1.8;
+      else if(k==='thighL'){ox=-amt*0.8;oy=-amt*0.8;}else if(k==='thighR'){ox=amt*0.8;oy=-amt*0.8;}
+      else if(k==='shinL'||k==='shinR')oy=-amt*1.2;
+      else if(k==='footL'||k==='footR')oy=-amt*1.5;
+      bone.position.set(def.x+ox,def.y+oy,def.z);
     }
   }
 
-  // --- Glowing Elastic Tendrils (Veins connecting fragmented joints) ---
-  class TendrilConnector {
-    constructor(objA, objB, color = 0x2255ff) {
-      this.objA = objA;
-      this.objB = objB;
-      this.pointsCount = 12;
-      
-      const positions = new Float32Array(this.pointsCount * 3);
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      
-      const material = new THREE.LineBasicMaterial({
-        color: color,
-        transparent: true,
-        opacity: 0.0, 
-        linewidth: 1
-      });
-      
-      this.line = new THREE.Line(geometry, material);
-      scene.add(this.line);
-      this.seed = Math.random() * 100;
-    }
-    
-    update(t, bass, corr) {
-      const posA = new THREE.Vector3();
-      const posB = new THREE.Vector3();
-      
-      this.objA.getWorldPosition(posA);
-      this.objB.getWorldPosition(posB);
-      
-      const posAttr = this.line.geometry.attributes.position;
-      
-      for (let i = 0; i < this.pointsCount; i++) {
-        const alpha = i / (this.pointsCount - 1);
-        const p = new THREE.Vector3().lerpVectors(posA, posB, alpha);
-        
-        // Add organic wriggling wave perpendicular to connection path
-        if (alpha > 0 && alpha < 1) {
-          const freq = 14.0;
-          const amp = (0.05 + corr * 0.15 + bass * 0.1) * Math.sin(alpha * Math.PI);
-          const wave = Math.sin(t * 8.0 + alpha * freq + this.seed) * amp;
-          const wave2 = Math.cos(t * 6.5 + alpha * freq + this.seed) * amp;
-          
-          const dir = new THREE.Vector3().subVectors(posB, posA).normalize();
-          const tangent = Math.abs(dir.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
-          const normal = new THREE.Vector3().crossVectors(dir, tangent).normalize();
-          const binormal = new THREE.Vector3().crossVectors(dir, normal).normalize();
-          
-          p.addScaledVector(normal, wave);
-          p.addScaledVector(binormal, wave2);
-        }
-        posAttr.setXYZ(i, p.x, p.y, p.z);
-      }
-      
-      posAttr.needsUpdate = true;
-      
-      const targetOpacity = (0.15 + corr * 0.8) * (0.6 + bass * 0.4);
-      this.line.material.opacity = targetOpacity;
-      this.line.material.color.setHSL(0.6 + Math.sin(t*2.0)*0.03, 1.0, 0.4 + bass * 0.2);
-    }
-  }
+  // Tendrils
+  tendrilConnectors.forEach(tc=>tc.update(time,L.bass,corr));
 
-  function initializeTendrils() {
-    // Clear existing
-    tendrilConnectors.forEach(tc => scene.remove(tc.line));
-    tendrilConnectors = [];
-    
-    if (!fbxModel) return;
-
-    const connections = [
-      [bonesMap.hips, bonesMap.spine],
-      [bonesMap.spine, bonesMap.chest],
-      [bonesMap.chest, bonesMap.neck],
-      [bonesMap.neck, bonesMap.head],
-      [bonesMap.chest, bonesMap.armL],
-      [bonesMap.armL, bonesMap.forearmL],
-      [bonesMap.chest, bonesMap.armR],
-      [bonesMap.armR, bonesMap.forearmR],
-      [bonesMap.hips, bonesMap.thighL],
-      [bonesMap.thighL, bonesMap.shinL],
-      [bonesMap.hips, bonesMap.thighR],
-      [bonesMap.thighR, bonesMap.shinR]
-    ];
-
-    connections.forEach(([a, b]) => {
-      if (a && b) {
-        tendrilConnectors.push(new TendrilConnector(a, b));
-      }
-    });
-  }
-
-  // --- Load FBX Character ---
-  const loader = new THREE.FBXLoader();
-  
-  function loadModel(url) {
-    return new Promise((resolve, reject) => {
-      console.log(`[Loader] Attempting to load: ${url}`);
-      loader.load(url, (fbx) => {
-        console.log(`[Loader] Loaded ${url}:`, fbx);
-        console.log(`[Loader] Children: ${fbx.children.length}`);
-        let meshCount = 0;
-        fbx.traverse(c => { if (c.isMesh) meshCount++; });
-        console.log(`[Loader] Meshes: ${meshCount}, Animations: ${fbx.animations ? fbx.animations.length : 0}`);
-        
-        const box = new THREE.Box3().setFromObject(fbx);
-        const size = new THREE.Vector3();
-        box.getSize(size);
-        const height = size.y;
-        console.log(`[Loader] BBox size: ${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}`);
-        
-        if (height <= 0 || !isFinite(height)) {
-          console.warn(`[Loader] Invalid height ${height}, trying next model`);
-          reject(new Error('Invalid model bounds'));
-          return;
-        }
-        
-        resolve(fbx);
-      }, 
-      (xhr) => {
-        const pct = Math.round((xhr.loaded / xhr.total) * 100);
-        statusEl.textContent = `モデルをロード中: ${pct}% (${url})`;
-      },
-      (err) => {
-        console.error(`[Loader] Failed to load ${url}:`, err);
-        reject(err);
-      });
-    });
-  }
-
-  function setupModel(fbx) {
-    fbxModel = fbx;
-    
-    const box = new THREE.Box3().setFromObject(fbx);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    const height = size.y;
-    
-    if (height > 0) {
-      const scaleTarget = 1.6 / height;
-      fbx.scale.setScalar(scaleTarget);
-      console.log(`[Loader] Scaled to ${(scaleTarget * 100).toFixed(1)}% (target 1.6 units)`);
-    }
-    
-    fbx.position.set(0, 3.0, 0);
-    fbx.rotation.y = Math.PI;
-    scene.add(fbx);
-    
-    mapBones(fbx);
-    saveDefaultBonePositions();
-    
-    fbx.traverse(child => {
-      if (child.isMesh) {
-        const origMat = child.material;
-        let hasOrigTex = false;
-        if (origMat) {
-          const mats = Array.isArray(origMat) ? origMat : [origMat];
-          hasOrigTex = mats.some(m => m.map !== null && m.map !== undefined);
-        }
-
-        if (hasOrigTex) {
-          const mats = Array.isArray(origMat) ? origMat : [origMat];
-          mats.forEach(m => {
-            m.flatShading = true;
-            m.emissive = new THREE.Color(0x0c0608);
-            m.emissiveIntensity = 0.12;
-            m.side = THREE.DoubleSide;
-            addRetroBody(m);
-          });
-        } else {
-          const name = child.name.toLowerCase();
-          const matName = origMat ? (Array.isArray(origMat) ? origMat[0].name.toLowerCase() : origMat.name.toLowerCase()) : '';
-          
-          let tex = bodyColorTex;
-          if (name.includes('head') || name.includes('face') || name.includes('hair') || name.includes('eye') ||
-              matName.includes('head') || matName.includes('face') || matName.includes('hair') || matName.includes('eye')) {
-            tex = baseColorTex;
-          }
-          
-          const mat = new THREE.MeshStandardMaterial({
-            map: tex,
-            roughness: 0.82,
-            metalness: 0.05,
-            flatShading: true,
-            emissive: 0x0c0608,
-            emissiveIntensity: 0.12,
-            side: THREE.DoubleSide
-          });
-          addRetroBody(mat);
-          child.material = mat;
-        }
-        
-        child.castShadow = true;
-        child.receiveShadow = true;
-        console.log(`[Loader] Mesh: "${child.name}" hasOrigTex=${hasOrigTex}`);
-      }
-    });
-    
-    initializeTendrils();
-    
-    if (fbx.animations && fbx.animations.length > 0) {
-      mixer = new THREE.AnimationMixer(fbx);
-      const action = mixer.clipAction(fbx.animations[0]);
-      action.play();
-      statusEl.textContent = "モデル＆アニメーションをロード完了。";
-    } else {
-      statusEl.textContent = "モデルをロード完了。（アニメーションなし）";
-    }
-  }
-
-  // Try Swimming.fbx first, fallback to ACharacter.fbx
-  loadModel('Swimming.fbx')
-    .catch(() => {
-      console.warn('[Loader] Swimming.fbx failed, falling back to ACharacter.fbx');
-      return loadModel('ps2-psx-lowpoly-character/source/ACharacter.fbx');
-    })
-    .then(fbx => setupModel(fbx))
-    .catch(err => {
-      console.error('[Loader] All models failed:', err);
-      statusEl.textContent = "モデルのロードに失敗しました。";
-      // Fallback: show a simple cube
-      const fallbackGeo = new THREE.BoxGeometry(0.8, 1.6, 0.5);
-      const fallbackMat = new THREE.MeshStandardMaterial({ color: 0x8a9ab5, flatShading: true, emissive: 0x0c0608, emissiveIntensity: 0.3 });
-      fbxModel = new THREE.Mesh(fallbackGeo, fallbackMat);
-      fbxModel.position.set(0, 3.0, 0);
-      scene.add(fbxModel);
-    });
-
-  // --- Floating Disembodied Orbits (Eyes observing the body parts) ---
-  function createFloatingEye() {
-    const group = new THREE.Group();
-    group.add(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.07), eyeWhiteMat));
-    const pupil = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.015), eyePupilMat);
-    pupil.position.z = 0.036;
-    group.add(pupil);
-    
-    scene.add(group);
-    
-    group.userData = {
-      seedX: Math.random() * 200,
-      seedY: Math.random() * 200,
-      seedZ: Math.random() * 200,
-      orbitRadius: 1.3 + Math.random() * 2.0,
-      speed: 0.35 + Math.random() * 0.35
-    };
-    
-    return group;
-  }
-  
-  const MAX_EYES = 12;
-  const floatingEyes = [];
-  for (let i = 0; i < MAX_EYES; i++) {
-    floatingEyes.push(createFloatingEye());
-  }
-
-  // --- Organic Growths and Loose Debris ---
-  const lesions = [];
-  for (let i = 0; i < 16; i++) {
-    const s = 0.015 + Math.random() * 0.035;
-    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(s, 0), lesionMat); 
-    m.position.set((Math.random() - 0.5) * 0.55, (Math.random() - 0.5) * 0.35, (Math.random() - 0.5) * 0.62);
-    m.scale.set(1 + Math.random() * 0.6, 1 + Math.random() * 0.6, 1 + Math.random() * 0.4);
-    m.userData.phase = Math.random() * Math.PI * 2;
-    m.userData.baseS = s;
-    m.visible = false;
-    scene.add(m); lesions.push(m);
-  }
-  
-  const looseChunks = [];
-  for (let i = 0; i < 28; i++) {
-    const s = 0.04 + Math.random() * 0.055;
-    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(s, 0), lesionMat);
-    m.userData.baseS = s;
-    m.userData.phase = Math.random() * Math.PI * 2;
-    m.position.set((Math.random() - 0.5) * 2.5, (Math.random() - 0.5) * 2.5, (Math.random() - 0.5) * 2.5);
-    m.visible = false;
-    scene.add(m); looseChunks.push(m);
-  }
-
-  // --- Drool Points ---
-  const droolCount = 28;
-  const droolGeo = new THREE.BufferGeometry();
-  const droolPos = new Float32Array(droolCount * 3);
-  const droolSpd = new Float32Array(droolCount);
-  for (let i = 0; i < droolCount; i++) {
-    droolPos[i * 3] = (Math.random() - 0.5) * 0.02;
-    droolPos[i * 3 + 1] = -0.05 - Math.random() * 0.2;
-    droolPos[i * 3 + 2] = 0.12;
-    droolSpd[i] = 0.02 + Math.random() * 0.06;
-  }
-  droolGeo.setAttribute('position', new THREE.BufferAttribute(droolPos, 3));
-  const droolMat = new THREE.PointsMaterial({ size: 0.045, color: 0x2a3a7a, transparent: true, opacity: 0.85, depthWrite: false });
-  const drool = new THREE.Points(droolGeo, droolMat);
-  scene.add(drool);
-
-  // --- Mouth Objects (for face animation) ---
-  const mouthClosedMat = new THREE.MeshBasicMaterial({ color: 0x0a0005, side: THREE.DoubleSide });
-  const mouthClosed = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.015), mouthClosedMat);
-  mouthClosed.visible = false;
-  scene.add(mouthClosed);
-
-  const mouthDeepMat = new THREE.MeshBasicMaterial({ color: 0x2a0008, side: THREE.DoubleSide });
-  const mouthDeep = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.02), mouthDeepMat);
-  mouthDeep.visible = false;
-  scene.add(mouthDeep);
-
-  // --- Sea surface meshes ---
-  const seaGeo = new THREE.PlaneGeometry(60, 60, 72, 72); 
-  seaGeo.rotateX(-Math.PI / 2);
-  const seaUniforms = { uTime: { value: 0 }, uBass: { value: 0 }, uMid: { value: 0 }, uCorruption: { value: 0 } };
-  const seaMat = new THREE.ShaderMaterial({
-    uniforms: seaUniforms, side: THREE.DoubleSide, transparent: true,
-    vertexShader: `
-      uniform float uTime; uniform float uBass; uniform float uCorruption;
-      varying float vHeight; varying vec3 vPos;
-      void main(){
-        vec3 p = position;
-        float turb = 1.0 + uCorruption*1.6;
-        float wave = sin(p.x*0.32+uTime*1.0)*0.5 + cos(p.z*0.26+uTime*0.8)*0.5
-                   + sin((p.x+p.z)*0.14+uTime*0.4)*0.4;
-        wave *= (0.5+uBass*1.8) * turb;
-        p.y += wave;
-        vHeight = wave; vPos = p;
-        gl_Position = projectionMatrix*modelViewMatrix*vec4(p,1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform float uTime; uniform float uMid; uniform float uCorruption;
-      varying float vHeight; varying vec3 vPos;
-      vec3 hsl2rgb(vec3 c){
-        vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0,0.0,1.0);
-        return c.z + c.y*(rgb-0.5)*(1.0-abs(2.0*c.z-1.0));
-      }
-      void main(){
-        float hue = fract(uTime*0.02 + vPos.x*0.01 + vPos.z*0.01 + vHeight*0.04 + 0.58);
-        vec3 ocean = hsl2rgb(vec3(hue, 0.7+uCorruption*0.2, 0.18+0.15*vHeight+uMid*0.15));
-        vec3 deepBlue = vec3(0.01, 0.04, 0.12);
-        vec3 surfaceBlue = vec3(0.02, 0.08, 0.22);
-        vec3 base = mix(deepBlue, surfaceBlue, 0.4+0.3*vHeight);
-        vec3 col = mix(base, ocean, clamp(uCorruption*0.8, 0.0, 1.0));
-        float foam = smoothstep(0.3, 0.6, vHeight) * (0.5+uMid*0.5);
-        col += vec3(0.08, 0.12, 0.18) * foam;
-        float splotch = step(0.88, fract(sin(vPos.x*13.0+vPos.z*7.0+uTime*0.2)*43758.5));
-        col *= 1.0 - splotch * uCorruption * 0.5;
-        gl_FragColor = vec4(col, 0.88);
-      }
-    `
-  });
-  
-  const sea = new THREE.Mesh(seaGeo, seaMat); 
-  sea.position.y = 6.0; 
-  scene.add(sea);
-  
-  const sea2 = new THREE.Mesh(seaGeo.clone(), seaMat); 
-  sea2.position.y = -20; 
-  sea2.rotation.y = Math.PI / 5; 
-  scene.add(sea2);
-  
-  const sea3 = new THREE.Mesh(seaGeo.clone(), seaMat); 
-  sea3.position.y = -46; 
-  sea3.rotation.y = Math.PI / 2.3; 
-  scene.add(sea3);
-
-  // Dark abyss floor - hides the bottom
-  const abyssGeo = new THREE.PlaneGeometry(200, 200);
-  abyssGeo.rotateX(-Math.PI / 2);
-  const abyssMat = new THREE.MeshBasicMaterial({ color: 0x010002, side: THREE.DoubleSide });
-  const abyss = new THREE.Mesh(abyssGeo, abyssMat);
-  abyss.position.y = -10;
-  scene.add(abyss);
-
-  const abyss2 = new THREE.Mesh(abyssGeo.clone(), abyssMat.clone());
-  abyss2.position.y = -4;
-  scene.add(abyss2);
-
-  // --- Land Scene (revealed at 28:30) ---
-  const landGroup = new THREE.Group();
-  landGroup.visible = false;
-
-  const groundGeo = new THREE.PlaneGeometry(80, 80, 24, 24);
-  groundGeo.rotateX(-Math.PI / 2);
-  const gVerts = groundGeo.attributes.position;
-  for (let i = 0; i < gVerts.count; i++) {
-    gVerts.setY(i, gVerts.getY(i) + (Math.random() - 0.5) * 0.3);
-  }
-  groundGeo.computeVertexNormals();
-  const groundMat = new THREE.MeshStandardMaterial({ color: 0x4a7a3a, roughness: 0.92, metalness: 0.0, flatShading: true, transparent: true, opacity: 0 });
-  const ground = new THREE.Mesh(groundGeo, groundMat);
-  ground.position.y = -0.5;
-  landGroup.add(ground);
-
-  const skyGeo = new THREE.SphereGeometry(55, 16, 12);
-  const skyMat = new THREE.MeshBasicMaterial({ color: 0x2255aa, side: THREE.BackSide, transparent: true, opacity: 0 });
-  const skyDome = new THREE.Mesh(skyGeo, skyMat);
-  skyDome.position.y = 5;
-  landGroup.add(skyDome);
-
-  const sunLight = new THREE.DirectionalLight(0xfff4d0, 0.0);
-  sunLight.position.set(12, 25, 8);
-  landGroup.add(sunLight);
-
-  const ambientLand = new THREE.AmbientLight(0x8899bb, 0.0);
-  landGroup.add(ambientLand);
-
-  scene.add(landGroup);
-
-  const LAND_TRANSITION_START = 1710;
-  const LAND_TRANSITION_END = 1725;
-  let landT = 0;
-  let landTransitioned = false;
-
-  // --- Background floating organic dust ---
-  const PCOUNT = 300;
-  const pGeo = new THREE.BufferGeometry();
-  const positions = new Float32Array(PCOUNT * 3);
-  const speeds = new Float32Array(PCOUNT);
-  for (let i = 0; i < PCOUNT; i++) {
-    positions[i * 3] = (Math.random() - 0.5) * 18;
-    positions[i * 3 + 1] = (Math.random() - 0.5) * 32;
-    positions[i * 3 + 2] = (Math.random() - 0.5) * 18;
-    speeds[i] = 0.12 + Math.random() * 0.4;
-  }
-  pGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const pMat = new THREE.PointsMaterial({ size: 0.045, color: 0x6a5468, transparent: true, opacity: 0.4, depthWrite: false });
-  const bgParticles = new THREE.Points(pGeo, pMat);
-  scene.add(bgParticles);
-
-  // --- Dynamic Splash Particles (Bubble burst on Dive entry) ---
-  const BCOUNT = 200;
-  const bubbleGeo = new THREE.BufferGeometry();
-  const bubblePos = new Float32Array(BCOUNT * 3);
-  const bubbleVels = new Float32Array(BCOUNT * 3);
-  
-  for (let i = 0; i < BCOUNT; i++) {
-    bubblePos[i * 3] = 0;
-    bubblePos[i * 3 + 1] = -999.0; 
-    bubblePos[i * 3 + 2] = 0;
-    bubbleVels[i * 3] = 0;
-    bubbleVels[i * 3 + 1] = 0;
-    bubbleVels[i * 3 + 2] = 0;
-  }
-  bubbleGeo.setAttribute('position', new THREE.BufferAttribute(bubblePos, 3));
-  const bubbleMat = new THREE.PointsMaterial({
-    size: 0.08,
-    color: 0xaa6688,
-    transparent: true,
-    opacity: 0.0,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending
-  });
-  const bubblePoints = new THREE.Points(bubbleGeo, bubbleMat);
-  scene.add(bubblePoints);
-
-  function triggerSplash() {
-    console.log("[Visual] Splash triggered!");
-    const posAttr = bubblePoints.geometry.attributes.position;
-    bubbleMat.opacity = 0.85;
-    
-    for (let i = 0; i < BCOUNT; i++) {
-      posAttr.setXYZ(
-        i,
-        camera.position.x + (Math.random() - 0.5) * 6.0,
-        5.9 + (Math.random() - 0.5) * 1.0,
-        camera.position.z - 2.5 - Math.random() * 5.0
-      );
-      
-      const theta = Math.random() * Math.PI * 2;
-      const r = Math.random() * 2.5;
-      bubbleVels[i * 3] = Math.cos(theta) * r;
-      bubbleVels[i * 3 + 1] = 5.0 + Math.random() * 10.0; 
-      bubbleVels[i * 3 + 2] = Math.sin(theta) * r;
-    }
-    posAttr.needsUpdate = true;
-  }
-
-  // --- Shockwave Rings (expanding rings on beat hits) ---
-  const ringCount = 6;
-  const rings = [];
-  for (let i = 0; i < ringCount; i++) {
-    const ringGeo = new THREE.RingGeometry(0.1, 0.15, 32);
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0x2255ff, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.visible = false;
-    scene.add(ring);
-    rings.push({ mesh: ring, scale: 0, active: false, seed: Math.random() * 100 });
-  }
-  let nextRingIdx = 0;
-  let lastRingTime = 0;
-
-  function triggerRing(t) {
-    const r = rings[nextRingIdx];
-    r.mesh.visible = true;
-    r.mesh.position.set(
-      (Math.random() - 0.5) * 3,
-      3.0 + (Math.random() - 0.5) * 2,
-      (Math.random() - 0.5) * 3
-    );
-    r.mesh.lookAt(camera.position);
-    r.scale = 0.3;
-    r.active = true;
-    r.mesh.material.color.setHSL(Math.random(), 1, 0.5);
-    nextRingIdx = (nextRingIdx + 1) % ringCount;
-    lastRingTime = t;
-  }
-
-  // --- Wireframe Geometric Polyhedra (spawning floating shapes) ---
-  const geoShapes = [];
-  const MAX_GEOS = 8;
-  for (let i = 0; i < MAX_GEOS; i++) {
-    const geos = [
-      new THREE.OctahedronGeometry(0.15 + Math.random() * 0.2, 0),
-      new THREE.IcosahedronGeometry(0.12 + Math.random() * 0.18, 0),
-      new THREE.TetrahedronGeometry(0.14 + Math.random() * 0.2, 0),
-      new THREE.DodecahedronGeometry(0.1 + Math.random() * 0.15, 0),
-    ];
-    const geo = geos[Math.floor(Math.random() * geos.length)];
-    const mat = new THREE.MeshBasicMaterial({
-      color: new THREE.Color().setHSL(Math.random(), 0.9, 0.5),
-      wireframe: true,
-      transparent: true,
-      opacity: 0,
-      blending: THREE.AdditiveBlending
-    });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.visible = false;
-    scene.add(mesh);
-    geoShapes.push({
-      mesh, mat,
-      seed: Math.random() * 200,
-      speed: 0.2 + Math.random() * 0.6,
-      orbitR: 2 + Math.random() * 4,
-      phase: Math.random() * Math.PI * 2,
-      spawnProgress: 0
-    });
-  }
-
-  // --- Vertical Light Beams (reactive columns) ---
-  const beamCount = 4;
-  const beams = [];
-  for (let i = 0; i < beamCount; i++) {
-    const beamGeo = new THREE.CylinderGeometry(0.02, 0.02, 40, 4);
-    const beamMat = new THREE.MeshBasicMaterial({
-      color: new THREE.Color().setHSL(Math.random(), 0.8, 0.4),
-      transparent: true,
-      opacity: 0,
-      blending: THREE.AdditiveBlending
-    });
-    const beam = new THREE.Mesh(beamGeo, beamMat);
-    beam.position.set((Math.random() - 0.5) * 12, 0, (Math.random() - 0.5) * 12);
-    beam.visible = false;
-    scene.add(beam);
-    beams.push({ mesh: beam, mat: beamMat, seed: Math.random() * 100 });
-  }
-
-  // --- Horizontal Light Sheets (translucent pulsing planes) ---
-  const sheetCount = 2;
-  const sheets = [];
-  for (let i = 0; i < sheetCount; i++) {
-    const sheetGeo = new THREE.PlaneGeometry(30, 30);
-    const sheetMat = new THREE.MeshBasicMaterial({
-      color: new THREE.Color().setHSL(Math.random(), 0.7, 0.3),
-      transparent: true,
-      opacity: 0,
-      side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    });
-    const sheet = new THREE.Mesh(sheetGeo, sheetMat);
-    sheet.rotation.x = -Math.PI / 2;
-    sheet.position.y = 3.0 + i * 3;
-    sheet.visible = false;
-    scene.add(sheet);
-    sheets.push({ mesh: sheet, mat: sheetMat, baseY: 3.0 + i * 3, seed: Math.random() * 100 });
-  }
-
-  // --- Spiral Particle Vortex ---
-  const vortexCount = 150;
-  const vortexGeo = new THREE.BufferGeometry();
-  const vortexPos = new Float32Array(vortexCount * 3);
-  const vortexVel = new Float32Array(vortexCount * 3);
-  for (let i = 0; i < vortexCount; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const r = 0.5 + Math.random() * 3;
-    vortexPos[i * 3] = Math.cos(angle) * r;
-    vortexPos[i * 3 + 1] = (Math.random() - 0.5) * 8;
-    vortexPos[i * 3 + 2] = Math.sin(angle) * r;
-    vortexVel[i * 3] = angle;
-    vortexVel[i * 3 + 1] = 0.5 + Math.random() * 2;
-    vortexVel[i * 3 + 2] = r;
-  }
-  vortexGeo.setAttribute('position', new THREE.BufferAttribute(vortexPos, 3));
-  const vortexMat = new THREE.PointsMaterial({
-    size: 0.06,
-    color: 0x4488ff,
-    transparent: true,
-    opacity: 0,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending
-  });
-  const vortexPoints = new THREE.Points(vortexGeo, vortexMat);
-  scene.add(vortexPoints);
-
-  // --- Radical-2 FFT Implementation ---
-  function bitReverse(x, bits) {
-    let y = 0;
-    let temp = x;
-    for (let i = 0; i < bits; i++) {
-      y = (y << 1) | (temp & 1);
-      temp >>= 1;
-    }
-    return y;
-  }
-
-  function fftIterative(re, im) {
-    const n = re.length;
-    const bits = Math.round(Math.log2(n));
-    
-    for (let i = 0; i < n; i++) {
-      const j = bitReverse(i, bits);
-      if (i < j) {
-        let temp = re[i]; re[i] = re[j]; re[j] = temp;
-        temp = im[i]; im[i] = im[j]; im[j] = temp;
-      }
-    }
-    
-    for (let len = 2; len <= n; len <<= 1) {
-      const angle = -2 * Math.PI / len;
-      const wlen_re = Math.cos(angle);
-      const wlen_im = Math.sin(angle);
-      for (let i = 0; i < n; i += len) {
-        let w_re = 1;
-        let w_im = 0;
-        const halfLen = len >> 1;
-        for (let j = 0; j < halfLen; j++) {
-          const u_re = re[i + j];
-          const u_im = im[i + j];
-          const v_re = re[i + j + halfLen] * w_re - im[i + j + halfLen] * w_im;
-          const v_im = re[i + j + halfLen] * w_im + im[i + j + halfLen] * w_re;
-          re[i + j] = u_re + v_re;
-          im[i + j] = u_im + v_im;
-          re[i + j + halfLen] = u_re - v_re;
-          im[i + j + halfLen] = u_im - v_im;
-          const next_w_re = w_re * wlen_re - w_im * wlen_im;
-          const next_w_im = w_re * wlen_im + w_im * wlen_re;
-          w_re = next_w_re;
-          w_im = next_w_im;
-        }
-      }
-    }
-  }
-
-  let fftRe = new Float32Array(512);
-  let fftIm = new Float32Array(512);
-
-  class AudioAnalyserExtractor {
-    constructor(audioBuffer, fftSize = 512) {
-      this.buffer = audioBuffer;
-      this.fftSize = fftSize;
-      this.sampleRate = audioBuffer.sampleRate;
-      
-      const channels = audioBuffer.numberOfChannels;
-      this.monoData = new Float32Array(audioBuffer.length);
-      if (channels === 1) {
-        this.monoData.set(audioBuffer.getChannelData(0));
-      } else {
-        const ch0 = audioBuffer.getChannelData(0);
-        const ch1 = audioBuffer.getChannelData(1);
-        for (let i = 0; i < audioBuffer.length; i++) {
-          this.monoData[i] = (ch0[i] + ch1[i]) * 0.5;
-        }
-      }
-      
-      this.window = new Float32Array(fftSize);
-      for (let i = 0; i < fftSize; i++) {
-        this.window[i] = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (fftSize - 1))); // Hann window
-      }
-    }
-    
-    getByteFrequencyData(time, outArray) {
-      const centerSample = Math.floor(time * this.sampleRate);
-      const startSample = centerSample - this.fftSize / 2;
-      
-      for (let i = 0; i < this.fftSize; i++) {
-        const idx = startSample + i;
-        if (idx >= 0 && idx < this.monoData.length) {
-          fftRe[i] = this.monoData[idx] * this.window[i];
-        } else {
-          fftRe[i] = 0;
-        }
-        fftIm[i] = 0;
-      }
-      
-      fftIterative(fftRe, fftIm);
-      
-      const minDb = -90;
-      const maxDb = -20;
-      const range = maxDb - minDb;
-      const numBins = this.fftSize / 2;
-      
-      for (let i = 0; i < numBins; i++) {
-        const r = fftRe[i] / this.fftSize;
-        const j = fftIm[i] / this.fftSize;
-        const mag = Math.sqrt(r * r + j * j) * 2;
-        
-        const db = mag > 0 ? 20 * Math.log10(mag) : -200;
-        let val = Math.round(((db - minDb) / range) * 255);
-        if (val < 0) val = 0;
-        if (val > 255) val = 255;
-        outArray[i] = val;
-      }
-    }
-  }
-
-  // --- Global State ---
-  let audioCtx = null;
-  let analyser = null;
-  let freqData = null;
-  let sourceNode = null;
-  let audioEl = null;
-  let playbackActive = false;
-  let trackDuration = 2013; // 33:33 default
-  let baseRate = 0.95 / trackDuration;
-  
-  let decodedAudioBuffer = null;
-  let audioExtractor = null;
-
-  // Time tracker that starts at 0 upon recording/playback trigger
-  let playTime = 0;
-
-  function ensureAudioCtx() {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.55;
-      freqData = new Uint8Array(analyser.frequencyBinCount);
-    }
-  }
-
-  function recomputeBaseRate() {
-    baseRate = 0.95 / Math.max(trackDuration, 20);
-    const m = Math.floor(trackDuration / 60);
-    const s = Math.floor(trackDuration % 60);
-    const durStr = `${m}:${String(s).padStart(2,'0')}`;
-    durationValEl.textContent = durStr;
-    seekDurationEl.textContent = durStr;
-  }
-
-  // --- Auto Load 1st full.wav if present ---
-  async function attemptAutoLoad() {
-    ensureAudioCtx();
-    try {
-      statusEl.textContent = "自動：アルバム音声をサーバーから取得中...";
-      const res = await fetch('1st full.wav');
-      if (!res.ok) throw new Error('Auto load failed or file not present');
-      const ab = await res.arrayBuffer();
-      statusEl.textContent = "自動：アルバム音声をデコード中...";
-      
-      decodedAudioBuffer = await audioCtx.decodeAudioData(ab);
-      audioExtractor = new AudioAnalyserExtractor(decodedAudioBuffer, 512);
-      trackDuration = decodedAudioBuffer.duration;
-      recomputeBaseRate();
-      
-      // Setup real-time audio player & routing for auto-loaded audio file
-      audioEl = new Audio();
-      audioEl.src = '1st full.wav';
-      audioEl.crossOrigin = "anonymous";
-      
-      audioEl.addEventListener('play', () => {
-        playbackActive = true; 
-        statusEl.textContent = "自動再生中: 1st full.wav";
-      });
-      audioEl.addEventListener('pause', () => {
-        playbackActive = false; 
-        statusEl.textContent = "一時停止中";
-      });
-      audioEl.addEventListener('ended', () => {
-        playbackActive = false; 
-        statusEl.textContent = "曲が終了しました";
-      });
-      
-      if (sourceNode) sourceNode.disconnect();
-      sourceNode = audioCtx.createMediaElementSource(audioEl);
-      sourceNode.connect(analyser); 
-      analyser.connect(audioCtx.destination);
-      
-      statusEl.textContent = "自動ロード成功：1st full.wav 準備完了。";
-    } catch (err) {
-      statusEl.textContent = "音声ファイルを読み込んでください (自動読込スキップ)";
-      console.log("[AutoLoad] skipped:", err.message);
-    }
-  }
-  
-  // Trigger auto-load after short delay
-  setTimeout(attemptAutoLoad, 1000);
-
-  // --- Audio File Input ---
-  document.getElementById('fileInput').addEventListener('change', async (e) => {
-    const file = e.target.files[0]; 
-    if (!file) return;
-    
-    ensureAudioCtx();
-    if (audioEl) { audioEl.pause(); }
-    playbackActive = false;
-    
-    // 1. Setup real-time audio element
-    audioEl = new Audio();
-    audioEl.src = URL.createObjectURL(file);
-    audioEl.crossOrigin = "anonymous";
-    
-    audioEl.addEventListener('loadedmetadata', () => {
-      if (isFinite(audioEl.duration) && audioEl.duration > 10) {
-        trackDuration = audioEl.duration;
-        recomputeBaseRate();
-      }
-    });
-    audioEl.addEventListener('play', () => {
-      playbackActive = true; 
-      statusEl.textContent = "浸食進行中: " + file.name;
-    });
-    audioEl.addEventListener('pause', () => {
-      playbackActive = false; 
-      statusEl.textContent = "一時停止中";
-    });
-    audioEl.addEventListener('ended', () => {
-      playbackActive = false; 
-      statusEl.textContent = "曲が終了しました";
-    });
-    
-    if (sourceNode) sourceNode.disconnect();
-    sourceNode = audioCtx.createMediaElementSource(audioEl);
-    sourceNode.connect(analyser); 
-    analyser.connect(audioCtx.destination);
-    
-    // 2. Setup offline decoder buffer simultaneously
-    statusEl.textContent = "オフライン分析用に音声データを処理中...";
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        decodedAudioBuffer = await audioCtx.decodeAudioData(event.target.result);
-        audioExtractor = new AudioAnalyserExtractor(decodedAudioBuffer, 512);
-        statusEl.textContent = "音声ロード＆デコード完了。プレビュー・書き出し準備完了。";
-      } catch (err) {
-        statusEl.textContent = "音声のデコードに失敗: " + err.message;
-      }
-    };
-    reader.readAsArrayBuffer(file);
-    
-    // Reset playTime
-    playTime = 0;
-    
-    audioCtx.resume().then(() => {
-      audioEl.play();
-    });
+  // Eyes
+  const eyeCount=Math.max(3,Math.floor(progress*MAX_EYES));
+  floatingEyes.forEach((eye,i)=>{
+    if(i>=eyeCount){eye.visible=false;return;}
+    eye.visible=true;eye.scale.setScalar(Math.min(1,(progress*MAX_EYES-i)));
+    const ud=eye.userData,th=time*ud.sp+ud.sx,ph=Math.sin(time*0.4+ud.sy)*1.1;
+    const hp=fbxModel?new THREE.Vector3():new THREE.Vector3(0,3,0);
+    if(fbxModel)fbxModel.getWorldPosition(hp);
+    const r=ud.r*(1+L.bass*0.3)*(0.9+progress*0.4);
+    eye.position.set(hp.x+r*Math.sin(th)*Math.cos(ph),hp.y+r*Math.sin(th)*Math.sin(ph),hp.z+r*Math.cos(th));
+    eye.lookAt(camera.position);eye.children[1].material.emissiveIntensity=1+L.bass*1.2+L.onsetMid*0.8;
   });
 
-  // --- Mic Input ---
-  document.getElementById('micBtn').addEventListener('click', async () => {
-    try {
-      ensureAudioCtx();
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      if (sourceNode) sourceNode.disconnect();
-      sourceNode = audioCtx.createMediaStreamSource(stream);
-      sourceNode.connect(analyser); 
-      audioCtx.resume();
-      playbackActive = true; 
-      trackDuration = 480; 
-      recomputeBaseRate();
-      playTime = 0;
-      statusEl.textContent = "マイク入力：リアルタイムで反応中...";
-    } catch (err) { 
-      statusEl.textContent = "マイクにアクセスできませんでした"; 
-    }
-  });
+  // Lesions
+  const lEmerge=THREE.MathUtils.smoothstep(corr,0.12,0.55);
+  const hp2=new THREE.Vector3();if(bonesMap.hips)bonesMap.hips.getWorldPosition(hp2);else if(fbxModel)fbxModel.getWorldPosition(hp2);else hp2.set(0,3,0);
+  lesions.forEach(l=>{const ph=l.ph+time*0.7;l.mesh.scale.setScalar(lEmerge*(1+Math.sin(ph)*0.15*(0.3+corr)+L.onsetMid*0.2));
+    l.mesh.position.set(hp2.x+Math.sin(ph)*0.25,hp2.y+Math.cos(ph*0.8)*0.25,hp2.z+Math.sin(ph*0.4)*0.25);l.mesh.visible=lEmerge>0.01;});
+  const cEmerge=THREE.MathUtils.smoothstep(corr,0.05,0.45);
+  chunks.forEach(c=>{const ph=c.ph+time*0.5;c.mesh.position.y+=0.015*Math.sin(ph)*(1+corr)*cEmerge;
+    c.mesh.rotation.x+=0.01*(1+corr);c.mesh.rotation.y+=0.013*(1+corr);
+    c.mesh.scale.setScalar(cEmerge*(1+corr*0.3));c.mesh.visible=cEmerge>0.01;});
 
-  // --- Play/Pause Button ---
-  playBtn.addEventListener('click', () => {
-    if (audioEl) {
-      if (audioEl.paused) { 
-        audioCtx.resume();
-        audioEl.play(); 
-      } else { 
-        audioEl.pause(); 
-      }
-    } else {
-      playbackActive = !playbackActive;
-      if (playbackActive) {
-        statusEl.textContent = "プレビュー再生中 (音声なし)";
-      } else {
-        statusEl.textContent = "一時停止中";
-      }
-    }
-  });
+  // BG particles
+  const pa=pGeo.attributes.position;
+  for(let i=0;i<PCOUNT;i++){let y=pa.array[i*3+1];y+=0.016*pSpd[i]*(1+L.treble*0.8);if(y>16)y=-16;pa.array[i*3+1]=y;}
+  pa.needsUpdate=true;
+  pMat.color.setHSL(THREE.MathUtils.lerp(0.06,hueAccum%1,Math.min(corr,1)),0.5,0.55);
+  pMat.opacity=0.3+Math.min(corr,1)*0.3+L.treble*0.1+surgeEnergy*0.1+L.onsetTreble*0.15;
 
-  // --- Reset Button ---
-  resetBtn.addEventListener('click', () => {
-    // Stop audio
-    if (audioEl) { audioEl.pause(); audioEl.currentTime = 0; }
-    playbackActive = false;
-    
-    // Reset animation mixer
-    if (mixer) {
-      mixer.stopAllAction();
-      if (fbxModel && fbxModel.animations && fbxModel.animations.length > 0) {
-        const action = mixer.clipAction(fbxModel.animations[0]);
-        action.play();
-      }
-    }
-    
-    // Reset all visual state
-    corruptionRaw = 0;
-    playTime = 0;
-    splashTriggered = false;
-    surgeEnergy = 0;
-    fastEnv = 0;
-    slowEnv = 0;
-    hueAccum = 0;
-    
-    // Reset seek bar
-    seekBar.value = 0;
-    seekTimeEl.textContent = '0:00';
-    
-    // Reset camera
-    camera.position.set(0, 35.0, 8.5);
-    camera.fov = 50;
-    camera.updateProjectionMatrix();
-    scene.fog.color.set(0x0f0e0d);
-    scene.fog.density = 0.035;
-    
-    // Reset model position/rotation
-    if (fbxModel) {
-      fbxModel.position.set(0, 3.0, 0);
-      fbxModel.rotation.set(0, Math.PI, 0);
-      
-      // Reset bone positions
-      for (const key in bonesMap) {
-        const bone = bonesMap[key];
-        const defPos = defaultBonePositions[key];
-        if (bone && defPos) {
-          bone.position.copy(defPos);
-        }
-      }
-    }
-    
-    // Reset materials
-    skinMat.color.set(0x8a9ab5);
-    skinMat.emissive.set(0x060c18);
-    skinMat.emissiveIntensity = 0.12;
-    
-    // Reset post-processing
-    renderer.setRenderTarget(rt1); renderer.clear();
-    renderer.setRenderTarget(rt2); renderer.clear();
-    renderer.setRenderTarget(sceneRT); renderer.clear();
-    postUniforms.uTrailAmount.value = 0.85;
-    
-    // Reset bubble
-    bubbleMat.opacity = 0.0;
-    
-    // Reset lesions and chunks
-    lesions.forEach(m => m.visible = false);
-    looseChunks.forEach(m => m.visible = false);
-    mouthClosed.visible = false;
-    mouthDeep.visible = false;
-    tendrilConnectors.forEach(tc => { tc.line.material.opacity = 0; });
-    floatingEyes.forEach(eye => { eye.visible = false; });
-    
-    // Reset sea
-    seaUniforms.uCorruption.value = 0;
-    
-    // Reset new visual systems
-    rings.forEach(r => { r.active = false; r.mesh.visible = false; r.mesh.material.opacity = 0; });
-    geoShapes.forEach(g => { g.mesh.visible = false; g.mat.opacity = 0; g.spawnProgress = 0; });
-    beams.forEach(b => { b.mesh.visible = false; b.mat.opacity = 0; });
-    sheets.forEach(s => { s.mesh.visible = false; s.mat.opacity = 0; });
-    vortexMat.opacity = 0;
-    lastRingTime = 0;
-    
-    // Reset land transition
-    landT = 0;
-    landTransitioned = false;
-    landGroup.visible = false;
-    groundMat.opacity = 0;
-    skyMat.opacity = 0;
-    sunLight.intensity = 0;
-    ambientLand.intensity = 0;
-    tendrilConnectors.forEach(tc => { tc.line.visible = true; });
-    
-    statusEl.textContent = "リセット完了";
-    clock.getDelta();
-    clock.start();
-  });
-
-  // --- WebM Local Real-time Recorder ---
-  let mediaRec = null, recChunks = [], recStartT = 0, recTimer = null;
-  function setRecInfo(html) { 
-    recInfo.innerHTML = html; 
-    recInfo.style.display = html ? 'block' : 'none'; 
-  }
-  
-  recBtn.addEventListener('click', () => {
-    if (mediaRec && mediaRec.state === 'recording') { mediaRec.stop(); return; }
-    try {
-      const stream = renderer.domElement.captureStream(60);
-      if (audioCtx) {
-        try {
-          const dest = audioCtx.createMediaStreamDestination();
-          analyser.connect(dest);
-          dest.stream.getAudioTracks().forEach(tr => stream.addTrack(tr));
-        } catch (_) {}
-      }
-      const mime = (window.MediaRecorder && MediaRecorder.isTypeSupported('video/webm;codecs=vp9'))
-        ? 'video/webm;codecs=vp9'
-        : (MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm');
-        
-      mediaRec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12000000 });
-      recChunks = [];
-      mediaRec.ondataavailable = e => { if (e.data && e.data.size) recChunks.push(e.data); };
-      mediaRec.onstop = () => {
-        const blob = new Blob(recChunks, { type: mime });
-        const url = URL.createObjectURL(blob);
-        const sizeMB = (blob.size / 1024 / 1024).toFixed(2);
-        setRecInfo(`REC ■ ${sizeMB} MB · <a href="${url}" download="mv_preview_${Date.now()}.webm">録画をダウンロード</a>`);
-        recBtn.textContent = '● 録画開始 (WebM)'; 
-        recBtn.classList.remove('recording');
-        if (recTimer) { clearInterval(recTimer); recTimer = null; }
-      };
-      
-      mediaRec.start(250);
-      recStartT = performance.now();
-      recBtn.textContent = '■ 録画停止'; 
-      recBtn.classList.add('recording');
-      setRecInfo('REC ● 録画中 · 0:00');
-      
-      // Reset visual timeline upon recording start
-      playTime = 0;
-      
-      recTimer = setInterval(() => {
-        const s = Math.floor((performance.now() - recStartT) / 1000);
-        setRecInfo(`REC ● 録画中 · ${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`);
-      }, 500);
-    } catch (err) { 
-      setRecInfo(`録画開始エラー: ${err.message || err}`); 
-    }
-  });
-
-  // --- Advanced Audio Onset Detection for Compressed Music ---
-  // Uses spectral flux, adaptive threshold, multi-band onset detection
-  
-  // --- Spectral history for flux computation ---
-  const SPECTRAL_BINS = 256;
-  let prevSpectrum = new Float32Array(SPECTRAL_BINS);
-  let spectralFlux = 0;
-  
-  // Adaptive threshold (running median approximation via exponential moving avg)
-  let adaptiveThreshold = 0;
-  const ADAPTIVE_RATE = 0.02;
-  
-  // Multi-band onset accumulators
-  let bassOnset = 0, midOnset = 0, trebleOnset = 0;
-  let bassOnsetDecay = 0, midOnsetDecay = 0, trebleOnsetDecay = 0;
-  
-  // Beat tracking
-  let beatPhase = 0;
-  let beatInterval = 0.5; // estimated BPM interval
-  let lastBeatTime = 0;
-  let beatConfidence = 0;
-  
-  // Crest factor (peak-to-RMS ratio for percussiveness)
-  let crestFactor = 0;
-  
-  // Spectral centroid (brightness of sound)
-  let spectralCentroid = 0;
-  
-  // Onset strength (continuous, not binary)
-  let onsetStrength = 0;
-  
-  // Perceptual sharpness (high-freq emphasis)
-  let perceptualSharpness = 0;
-  
-  // Smoothed energy bands for visual use
-  let smoothBass = 0, smoothMid = 0, smoothTreble = 0;
-  
-  // History buffer for adaptive threshold
-  const THRESHOLD_HISTORY = 43; // ~1 second at 43fps
-  let thresholdHistory = new Float32Array(THRESHOLD_HISTORY);
-  let thresholdIdx = 0;
-  
-  // Onset memory for visual triggers
-  let onsetMemory = { bass: 0, mid: 0, treble: 0, any: 0 };
-  let prevOnsetMemory = { bass: 0, mid: 0, treble: 0, any: 0 };
-  
-  // Decay constants
-  const ONSET_DECAY_BASS = 4.5;
-  const ONSET_DECAY_MID = 6.0;
-  const ONSET_DECAY_TREBLE = 8.0;
-  const ONSET_DECAY_ANY = 3.5;
-
-  let fastEnv = 0, slowEnv = 0, surgeEnergy = 0;
-  let hueAccum = 0;
-  let corruptionRaw = 0;
-  let splashTriggered = false;
-
-  function getAudioLevels(customFreqData) {
-    let source = customFreqData || freqData;
-    if (!source) return { bass: 0, mid: 0, treble: 0, spectralFlux: 0, onsetStrength: 0, crestFactor: 0, spectralCentroid: 0, perceptualSharpness: 0 };
-    
-    const n = source.length;
-    
-    // --- Multi-band energy ---
-    const bassEnd = Math.floor(n * 0.08);
-    const lowMidEnd = Math.floor(n * 0.18);
-    const midEnd = Math.floor(n * 0.45);
-    
-    let bass = 0, lowMid = 0, mid = 0, treble = 0;
-    let rmsSum = 0, peakVal = 0;
-    let weightedSum = 0, totalEnergy = 0;
-    let highFreqSum = 0, highFreqCount = 0;
-    
-    for (let i = 0; i < n; i++) {
-      const v = source[i] / 255;
-      rmsSum += v * v;
-      if (v > peakVal) peakVal = v;
-      
-      if (i < bassEnd) bass += v;
-      else if (i < lowMidEnd) lowMid += v;
-      else if (i < midEnd) mid += v;
-      else treble += v;
-      
-      // Spectral centroid
-      weightedSum += v * i;
-      totalEnergy += v;
-      
-      // Perceptual sharpness (high freq emphasis)
-      if (i > n * 0.6) {
-        highFreqSum += v * (i / n);
-        highFreqCount++;
-      }
-    }
-    
-    bass /= bassEnd * 255;
-    lowMid /= (lowMidEnd - bassEnd) * 255;
-    mid /= (midEnd - bassEnd) * 255;
-    treble /= (n - midEnd) * 255;
-    
-    const rms = Math.sqrt(rmsSum / n);
-    crestFactor = peakVal / Math.max(rms, 0.001);
-    spectralCentroid = totalEnergy > 0 ? weightedSum / (totalEnergy * n) : 0;
-    perceptualSharpness = highFreqCount > 0 ? highFreqSum / highFreqCount : 0;
-    
-    // --- Spectral Flux (frame-to-frame difference) ---
-    let flux = 0;
-    let fluxBass = 0, fluxMid = 0, fluxTreble = 0;
-    const binSize = n / SPECTRAL_BINS;
-    
-    for (let i = 0; i < SPECTRAL_BINS && i < n; i++) {
-      const binIdx = Math.min(Math.floor(i * binSize), n - 1);
-      const curr = source[binIdx] / 255;
-      const prev = prevSpectrum[i];
-      const diff = curr - prev;
-      
-      // Half-wave rectification: only count increases (onsets)
-      if (diff > 0) {
-        flux += diff * diff; // squared for emphasis
-        if (i < SPECTRAL_BINS * 0.08) fluxBass += diff;
-        else if (i < SPECTRAL_BINS * 0.45) fluxMid += diff;
-        else fluxTreble += diff;
-      }
-      prevSpectrum[i] = curr;
-    }
-    
-    spectralFlux = Math.sqrt(flux);
-    
-    // Normalize sub-band flux
-    fluxBass /= (SPECTRAL_BINS * 0.08);
-    fluxMid /= (SPECTRAL_BINS * 0.37);
-    fluxTreble /= (SPECTRAL_BINS * 0.55);
-    
-    // --- Adaptive threshold ---
-    thresholdHistory[thresholdIdx] = spectralFlux;
-    thresholdIdx = (thresholdIdx + 1) % THRESHOLD_HISTORY;
-    
-    let threshSum = 0;
-    for (let i = 0; i < THRESHOLD_HISTORY; i++) threshSum += thresholdHistory[i];
-    const medianThresh = threshSum / THRESHOLD_HISTORY;
-    adaptiveThreshold = medianThresh * 1.4; // threshold = 1.4x running average
-    
-    // --- Onset detection (flux exceeds adaptive threshold) ---
-    const bassThresh = adaptiveThreshold * 0.6;
-    const midThresh = adaptiveThreshold * 0.8;
-    const trebleThresh = adaptiveThreshold * 1.0;
-    
-    const rawBassOnset = fluxBass > bassThresh ? fluxBass - bassThresh : 0;
-    const rawMidOnset = fluxMid > midThresh ? fluxMid - midThresh : 0;
-    const rawTrebleOnset = fluxTreble > trebleThresh ? fluxTreble - trebleThresh : 0;
-    const rawAnyOnset = Math.max(rawBassOnset, rawMidOnset, rawTrebleOnset);
-    
-    // Smooth onset spikes with exponential decay
-    bassOnsetDecay = Math.max(rawBassOnset, bassOnsetDecay * 0.92);
-    midOnsetDecay = Math.max(rawMidOnset, midOnsetDecay * 0.88);
-    trebleOnsetDecay = Math.max(rawTrebleOnset, trebleOnsetDecay * 0.85);
-    onsetStrength = Math.max(rawAnyOnset, onsetStrength * 0.9);
-    
-    // Store onset memory for visual triggers
-    prevOnsetMemory.bass = onsetMemory.bass;
-    prevOnsetMemory.mid = onsetMemory.mid;
-    prevOnsetMemory.treble = onsetMemory.treble;
-    prevOnsetMemory.any = onsetMemory.any;
-    
-    onsetMemory.bass = rawBassOnset;
-    onsetMemory.mid = rawMidOnset;
-    onsetMemory.treble = rawTrebleOnset;
-    onsetMemory.any = rawAnyOnset;
-    
-    // --- Compressed audio expansion (aggressive) ---
-    bass = Math.pow(Math.max(0, (bass - 0.30) / 0.70), 2.2);
-    lowMid = Math.pow(Math.max(0, (lowMid - 0.30) / 0.70), 2.4);
-    mid = Math.pow(Math.max(0, (mid - 0.32) / 0.68), 2.4);
-    treble = Math.pow(Math.max(0, (treble - 0.28) / 0.72), 2.6);
-    
-    // Smooth energy for stable visual use
-    smoothBass += (bass - smoothBass) * 0.15;
-    smoothMid += (mid - smoothMid) * 0.15;
-    smoothTreble += (treble - smoothTreble) * 0.15;
-    
-    return { 
-      bass, mid, treble, lowMid,
-      spectralFlux: spectralFlux * 2.0,
-      onsetStrength: onsetStrength * 3.0,
-      crestFactor,
-      spectralCentroid,
-      perceptualSharpness,
-      bassOnset: bassOnsetDecay * 4.0,
-      midOnset: midOnsetDecay * 3.5,
-      trebleOnset: trebleOnsetDecay * 3.0,
-      rawFluxBass: fluxBass,
-      rawFluxMid: fluxMid,
-      rawFluxTreble: fluxTreble
-    };
+  // Bubbles
+  if(splashTriggered&&bMat.opacity>0.01){
+    const bpa=bubbles.geometry.attributes.position;
+    for(let i=0;i<BCOUNT;i++){let bx=bpa.getX(i),by=bpa.getY(i),bz=bpa.getZ(i);
+      if(by>-50){bx+=bVel[i*3]*dt;by+=bVel[i*3+1]*dt;bz+=bVel[i*3+2]*dt;bVel[i*3+1]-=dt*9.8;bpa.setXYZ(i,bx,by,bz);}}
+    bpa.needsUpdate=true;bMat.opacity-=dt*0.12;
   }
 
-  function updateRetroUniforms(mat, t, a, mut) {
-    if (mat.userData.shader) {
-      mat.userData.shader.uniforms.uTimeU.value = t;
-      mat.userData.shader.uniforms.uOrganicAmp.value = a;
-      mat.userData.shader.uniforms.uMutation.value = mut;
-      // Dynamic snap: smooth at first, gradually becomes low-poly
-      const snap = THREE.MathUtils.lerp(1000.0, 80.0, Math.pow(mut, 2.5));
-      mat.userData.shader.uniforms.uSnap.value = snap;
-    }
+  // Rings
+  if(L.onsetBass>0.3&&time-lastRingT>0.2)triggerRing();
+  rings.forEach(r=>{if(r.active){r.scale+=dt*5*(1+L.bass*1.5);r.mesh.scale.setScalar(r.scale);r.mesh.material.opacity=Math.max(0,0.6-r.scale*0.07)*Math.min(corr+0.1,1);if(r.scale>10){r.active=false;r.mesh.visible=false;}}});
+
+  // Vortex
+  vMat.opacity=THREE.MathUtils.smoothstep(corr,0.05,0.4)*0.5*(0.3+L.bass*0.4+surgeEnergy*0.2+L.onsetMid*0.3);
+  vMat.color.setHSL((hueAccum*1.3)%1,0.8,0.5);
+  const vp=vortex.geometry.attributes.position;
+  for(let i=0;i<VC;i++){let a=vp.array[i*3],vy=vp.array[i*3+1],vr=vp.array[i*3+2];
+    a+=dt*(0.6+L.bass*1+corr*0.3+L.onsetMid*1.5);vy+=dt*vVel[i*3+1]*(0.8+L.bass);
+    if(vy>10){vy=-10;vr=0.5+Math.random()*3;}if(vr>5)vr=0.5;
+    vp.array[i*3]=Math.cos(a)*vr;vp.array[i*3+1]=vy;vp.array[i*3+2]=Math.sin(a)*vr;}
+  vp.needsUpdate=true;
+
+  // Land transition
+  if(time>=LAND_START&&!landDone)landT=Math.min(1,(time-LAND_START)/(LAND_END-LAND_START));
+  if(landT>=1)landDone=true;
+  if(landT>0){
+    landGroup.visible=true;
+    sea.visible=landT<0.6;sea2.visible=landT<0.5;abyss1.visible=landT<0.7;abyss2.visible=landT<0.6;
+    bgParts.visible=landT<0.5;bubbles.visible=landT<0.5;
+    floatingEyes.forEach(e=>e.visible=false);tendrilConnectors.forEach(tc=>{tc.line.visible=false;});
+    lesions.forEach(l=>l.mesh.visible=false);chunks.forEach(c=>c.mesh.visible=false);
+    rings.forEach(r=>{r.active=false;r.mesh.visible=false;});vortex.visible=false;
+    groundMat2.opacity=landT;skyMat.opacity=landT;
+    skyMat.color.setHSL(0.58,0.55+landT*0.15,0.15+landT*0.4);
+    sunLight.intensity=landT*2.5;ambLand.intensity=landT*0.7;
+    const tc=new THREE.Vector3(4,7,6);camera.position.lerp(tc,landT*0.04);
+    if(fbxModel){fbxModel.position.y+=(-0.2-fbxModel.position.y)*landT*0.03;fbxModel.position.x*=(1-landT*0.03);fbxModel.position.z*=(1-landT*0.03);}
+    const lt=new THREE.Vector3(0,0,0);if(fbxModel)fbxModel.getWorldPosition(lt);lt.y+=0.3;camera.lookAt(lt);
+    scene.fog.color.lerp(new THREE.Color(0x88bbee),landT*0.05);scene.fog.density=Math.max(0.012,scene.fog.density*(1-landT*0.03));
+    key.color.lerp(new THREE.Color(0xfff4d0),landT*0.04);fill.color.lerp(new THREE.Color(0x8899cc),landT*0.04);
+    key.intensity=THREE.MathUtils.lerp(key.intensity,1.5,landT*0.03);
+    underLight.intensity*=1-landT*0.05;
+    postUniforms.uTrail.value*=1-landT*0.9;
   }
 
-  function getProgress(time) {
-    if (audioEl && isFinite(audioEl.duration) && audioEl.duration > 0) {
-      return Math.min(1.0, time / audioEl.duration);
-    }
-    return Math.min(1.0, time / 2013);
-  }
+  // Post uniforms
+  postUniforms.uTime.value=time;postUniforms.uCorr.value=Math.min(corr,1.2)+L.onsetAny*0.2;
+  postUniforms.uBass.value=L.bass+L.onsetBass*0.4;postUniforms.uSurge.value=Math.min(surgeEnergy,1);
+  postUniforms.uTrail.value=parseFloat(trailSlider.value)/100*(1-progress*0.3);
+  if(landDone)postUniforms.uTrail.value*=0.05;
+}
 
-  // --- Render Frame Function ---
-  function drawFrame(time, dt, customFreqData) {
-    const levels = getAudioLevels(customFreqData);
-    const { bass, mid, treble, lowMid, spectralFlux, onsetStrength, crestFactor, spectralCentroid, perceptualSharpness, bassOnset, midOnset, trebleOnset } = levels;
-    const audioEnergy = (bass + mid + treble) / 3;
+function getProgress(t){if(audioEl&&isFinite(audioEl.duration)&&audioEl.duration>0)return Math.min(1,t/audioEl.duration);return Math.min(1,t/2013);}
 
-    // Advanced onset detection for compressed audio
-    // Use spectral flux as primary onset signal
-    const onset = spectralFlux;
-    surgeEnergy = Math.max(onset, surgeEnergy - dt * 1.8);
-    
-    // Multi-band onset triggers (detect new onsets, not sustained)
-    const bassHit = onsetMemory.bass > 0.01 && prevOnsetMemory.bass < 0.005;
-    const midHit = onsetMemory.mid > 0.01 && prevOnsetMemory.mid < 0.005;
-    const trebleHit = onsetMemory.treble > 0.01 && prevOnsetMemory.treble < 0.005;
-    const anyHit = onsetMemory.any > 0.01 && prevOnsetMemory.any < 0.005;
+// --- Main Loop ---
+const clock=new THREE.Clock();clock.start();
+let fpsCount=0,fpsT=performance.now();
+const tmpFd=new Uint8Array(1024);
 
-    const progress = getProgress(time);
+function animate(){
+  requestAnimationFrame(animate);
+  const dtRaw=Math.min(clock.getDelta(),0.05);
+  if(audioEl&&playbackActive)playTime=audioEl.currentTime;else if(playbackActive)playTime+=dtRaw;
+  const t=playTime,dt=playbackActive?dtRaw:0;
+  if(analyser)analyser.getByteFrequencyData(tmpFd);else tmpFd.fill(0);
+  if(mixer&&playbackActive)mixer.update(dtRaw);
+  drawFrame(t,dt,tmpFd);
+  updateSeekBar(t);
 
-    // Dynamic wave curves for visual cycles
-    const wave1 = Math.sin(progress * Math.PI * 2 * 2.5 + 0.6) * 0.5 + 0.5;
-    const wave2 = Math.sin(progress * Math.PI * 2 * 6.0 + 2.1) * 0.5 + 0.5;
-    const variety = wave1 * 0.6 + wave2 * 0.4;
+  // Render: scene -> post -> screen (2 passes instead of 3)
+  renderer.setRenderTarget(sceneRT);renderer.clear();renderer.render(scene,camera);
+  postUniforms.tDiffuse.value=sceneRT.texture;postUniforms.tPrev.value=prevRT.texture;
+  renderer.setRenderTarget(prevRT);renderer.clear();renderer.render(postScene,postCam);
+  renderer.setRenderTarget(null);renderer.clear();
+  screenUniforms.tDiffuse.value=prevRT.texture;renderer.render(screenScene,screenCam);
 
-    const rateMul = corruptSpeedSlider.value / 50;
-    corruptionRaw += dt * (baseRate * rateMul * 0.85 + audioEnergy * 0.008 + spectralFlux * 0.012);
-    const corr = Math.min(corruptionRaw, 1.2);
-    const corrVis = Math.min(corruptionRaw, 1.0);
-    
-    corruptValEl.textContent = Math.round(corrVis * 100) + "%" + (corruptionRaw > 1.0 ? " ++" : "");
-    hueAccum += dt * 0.045 * (0.55 + variety * 0.9) + spectralFlux * 0.003;
+  fpsCount++;const now=performance.now();
+  if(now-fpsT>=500){fpsValEl.textContent=Math.round(fpsCount*1000/(now-fpsT))+' fps';fpsT=now;fpsCount=0;}
+}
 
-    // Fog colors
-    const fogA = new THREE.Color(0x0f0e0d); // sky misty grey
-    const fogB = new THREE.Color(0x060103); // deep dark crimson-black underwater
-
-    // Track targets dynamically (camera centering)
-    const targetLookAt = new THREE.Vector3();
-    if (fbxModel) {
-      if (bonesMap.hips) {
-        bonesMap.hips.getWorldPosition(targetLookAt);
-      } else {
-        fbxModel.getWorldPosition(targetLookAt);
-      }
-      targetLookAt.y += 0.42; // Center on chest/hips
-    } else {
-      targetLookAt.set(0, 3.0, 0);
-    }
-    
-    // Dive Sequence Transitions (splash at 2.5s)
-    if (time < 2.5) {
-      const ratio = time / 2.5;
-      camera.position.y = 35.0 - Math.pow(ratio, 2) * 29.0; // Accelerating dive
-      camera.position.x = 0;
-      camera.position.z = 0.1; // Straight down plummet
-      camera.lookAt(targetLookAt);
-      
-      scene.fog.color.copy(fogA);
-      scene.fog.density = 0.06;
-      splashTriggered = false;
-      bubbleMat.opacity = 0.0;
-    } else {
-      // 2.5 seconds or later (Underwater space)
-      if (!splashTriggered) {
-        triggerSplash();
-        splashTriggered = true;
-        // Inject huge transient burst
-        surgeEnergy = 1.0;
-      }
-      
-      const underwaterTime = time - 2.5;
-      // Camera stays mostly fixed, very gentle drift
-      const targetY = 6.0 - Math.min(underwaterTime * 0.35, 6.0);
-      camera.position.y += (targetY - camera.position.y) * 0.03;
-      camera.position.x += (mouseX * 0.3 - camera.position.x) * 0.005;
-      
-      // Camera Z stays nearly fixed
-      const targetZ = 7.5;
-      camera.position.z += (targetZ - camera.position.z) * 0.03;
-      
-      // Look directly at the model center (Torso/Hips) at all times
-      camera.lookAt(targetLookAt);
-
-      scene.fog.color.copy(fogA).lerp(fogB, Math.min(underwaterTime * 0.4, 1.0));
-      scene.fog.density = 0.12 + Math.min(corr, 1.0) * 0.02 + variety * Math.min(corr, 1.0) * 0.015;
-    }
-
-    // Camera field of view barely changes
-    camera.fov = 50 + surgeEnergy * 1.5;
-    camera.updateProjectionMatrix();
-
-    // Lighting updates
-    key.color.setHSL(THREE.MathUtils.lerp(0.58, hueAccum % 1, Math.min(corr, 1)), THREE.MathUtils.lerp(0.15, 0.8, Math.min(corr,1)), 0.55);
-    fill.color.setHSL(THREE.MathUtils.lerp(0.52, (hueAccum + 0.5) % 1, Math.min(corr, 1)), THREE.MathUtils.lerp(0.25, 0.85, Math.min(corr,1)), 0.4);
-    key.intensity = 1.1 + bass * 1.6 + Math.min(corr, 1) * 1.2 + surgeEnergy * 1.2 + bassOnset * 1.5;
-    fill.intensity = 0.9 + mid * 1.2 + midOnset * 1.0;
-    underLight.intensity = 0.6 + corr * 1.8 + bass * 0.6 + surgeEnergy * 0.8 + onsetStrength * 0.8;
-
-    // Sea displacement uniforms
-    seaUniforms.uTime.value = time; 
-    seaUniforms.uBass.value = bass; 
-    seaUniforms.uMid.value = mid;
-    seaUniforms.uCorruption.value = Math.min(corr, 1.0);
-
-    // --- Model color/rot decays (Altered perception mutations) ---
-    const normalSkin = new THREE.Color(0x8a9ab5);
-    const deadSkin = new THREE.Color(0x101218);
-    skinMat.color.copy(normalSkin).lerp(deadSkin, progress);
-    
-    skinMat.emissive.setHSL(0.6 + spectralCentroid * 0.3, 1.0, progress * 0.35 + bass * 0.15 + bassOnset * 0.1);
-    skinMat.emissiveIntensity = 0.1 + progress * 1.6 + bass * 0.4 + onsetStrength * 0.5;
-    
-    updateRetroUniforms(skinMat, time, Math.min(corr, 1.2) * 0.045 + bass * 0.015, progress);
-    updateRetroUniforms(lesionMat, time, Math.min(corr, 1.2) * 0.06 + bass * 0.025, progress);
-
-    // --- Dismembered / Fragmented FBX Model Bone-offsetting ---
-    if (fbxModel) {
-      const sinkSpeed = sinkSpeedSlider.value / 1000;
-      fbxModel.position.y -= dt * (sinkSpeed * 4.5) * (1.0 + bass * 1.1);
-      fbxModel.rotation.z = Math.PI / 2;
-      
-      // Bass-hit camera/model shake
-      if (bassOnset > 0.3) {
-        fbxModel.position.x += (Math.random() - 0.5) * bassOnset * 0.08;
-        fbxModel.position.z += (Math.random() - 0.5) * bassOnset * 0.05;
-      }
-
-      // Irreversible separation (parts drift far apart into deep space)
-      const separation = progress * 1.4;
-
-      for (const key in bonesMap) {
-        const bone = bonesMap[key];
-        const defPos = defaultBonePositions[key];
-        if (bone && defPos) {
-          const amount = separation * 0.5 + corr * 0.15 + bass * 0.08 + bassOnset * 0.12;
-          let offset = new THREE.Vector3();
-          
-          if (key === 'head') offset.set(0, amount * 1.6, 0);
-          else if (key === 'neck') offset.set(0, amount * 0.8, 0);
-          else if (key === 'armL') offset.set(-amount * 1.2, 0, 0);
-          else if (key === 'armR') offset.set(amount * 1.2, 0, 0);
-          else if (key === 'forearmL') offset.set(-amount * 1.5, 0, 0);
-          else if (key === 'forearmR') offset.set(amount * 1.5, 0, 0);
-          else if (key === 'handL') offset.set(-amount * 1.8, 0, 0);
-          else if (key === 'handR') offset.set(amount * 1.8, 0, 0);
-          else if (key === 'thighL') offset.set(-amount * 0.8, -amount * 0.8, 0);
-          else if (key === 'thighR') offset.set(amount * 0.8, -amount * 0.8, 0);
-          else if (key === 'shinL') offset.set(0, -amount * 1.2, 0);
-          else if (key === 'shinR') offset.set(0, -amount * 1.2, 0);
-          else if (key === 'footL') offset.set(0, -amount * 1.5, 0);
-          else if (key === 'footR') offset.set(0, -amount * 1.5, 0);
-          
-          bone.position.copy(defPos).add(offset);
-        }
-      }
-    }
-
-    // Update dynamic tendril connectors
-    tendrilConnectors.forEach(tc => tc.update(time, bass, corr));
-
-    // --- Dynamic Spawning eye swarm observer swarm ---
-    const activeCount = Math.max(4, Math.floor(progress * MAX_EYES));
-    
-    floatingEyes.forEach((eye, index) => {
-      if (index < activeCount) {
-        eye.visible = true;
-        
-        const scaleFactor = Math.min(1.0, (progress * MAX_EYES) - index);
-        eye.scale.setScalar(scaleFactor);
-        
-        const ud = eye.userData;
-        const theta = time * ud.speed + ud.seedX;
-        const phi = Math.sin(time * 0.4 + ud.seedY) * 1.1;
-        
-        const hPos = new THREE.Vector3();
-        if (fbxModel) {
-          fbxModel.getWorldPosition(hPos);
-        } else {
-          hPos.set(0, 3.0, 0);
-        }
-        
-        const r = ud.orbitRadius * (1.0 + bass * 0.35) * (0.9 + progress * 0.6);
-        
-        eye.position.x = hPos.x + r * Math.sin(theta) * Math.cos(phi);
-        eye.position.y = hPos.y + r * Math.sin(theta) * Math.sin(phi);
-        eye.position.z = hPos.z + r * Math.cos(theta);
-        
-        eye.lookAt(camera.position);
-        eye.children[1].material.emissiveIntensity = 1.3 + bass * 1.4 + corr * 1.0 + midOnset * 1.2;
-      } else {
-        eye.visible = false;
-      }
-    });
-
-    // Mouth animation (follows head position if present)
-    const mouthOpen = 0.5 + Math.abs(Math.sin(time * 0.6)) * 0.5 + bass * 1.2 + Math.min(corr, 1.0) * 0.8 + bassOnset * 0.8;
-    mouthDeep.scale.set(1, Math.min(1.6, mouthOpen), 1);
-    
-    if (bonesMap.head) {
-      const headPos = new THREE.Vector3();
-      bonesMap.head.getWorldPosition(headPos);
-      
-      // Place mouth elements near the face
-      mouthClosed.position.copy(headPos).add(new THREE.Vector3(0, -0.05, 0.08));
-      mouthDeep.position.copy(headPos).add(new THREE.Vector3(0, -0.05, 0.09));
-      mouthClosed.lookAt(camera.position);
-      mouthDeep.lookAt(camera.position);
-      mouthClosed.visible = true;
-      mouthDeep.visible = true;
-    } else {
-      mouthClosed.visible = false;
-      mouthDeep.visible = false;
-    }
-
-    // Lesions emerging
-    const lesionEmerge = THREE.MathUtils.smoothstep(corr, 0.12, 0.55);
-    lesions.forEach(m => {
-      const ph = m.userData.phase + time * 0.7;
-      m.scale.setScalar(lesionEmerge * (1.0 + Math.sin(ph) * 0.18 * (0.3 + corr) + midOnset * 0.3));
-      
-      // Position lesions near hips/torso
-      const hPos = new THREE.Vector3();
-      if (bonesMap.hips) bonesMap.hips.getWorldPosition(hPos);
-      else if (fbxModel) fbxModel.getWorldPosition(hPos);
-      else hPos.set(0,3,0);
-      
-      m.position.set(
-        hPos.x + Math.sin(ph)*0.25,
-        hPos.y + Math.cos(ph*0.8)*0.25,
-        hPos.z + Math.sin(ph*0.4)*0.25
-      );
-      m.visible = lesionEmerge > 0.01;
-    });
-
-    // Organic chunk debris floating
-    const chunkEmerge = THREE.MathUtils.smoothstep(corr, 0.05, 0.45);
-    looseChunks.forEach(m => {
-      const ph = m.userData.phase + time * 0.5;
-      m.position.y += 0.015 * Math.sin(ph) * (1.0 + corr * 1.5) * chunkEmerge;
-      m.position.x += 0.012 * Math.cos(ph * 0.7) * chunkEmerge;
-      m.rotation.x += 0.01 * (1.0 + corr);
-      m.rotation.y += 0.013 * (1.0 + corr);
-      m.scale.setScalar(chunkEmerge * (1.0 + corr * 0.4 + Math.sin(ph) * 0.05));
-      m.visible = chunkEmerge > 0.01;
-    });
-
-    // Drool update (placed at head position)
-    const dPos = drool.geometry.attributes.position;
-    const headPos = new THREE.Vector3();
-    if (bonesMap.head) bonesMap.head.getWorldPosition(headPos);
-    else headPos.set(0,3.8,0);
-
-    for (let i = 0; i < droolCount; i++) {
-      let yy = dPos.array[i * 3 + 1];
-      yy -= droolSpd[i] * 0.02 * (1.0 + bass * 1.5);
-      
-      // Draw dynamic drool dripping from head
-      dPos.array[i * 3] = headPos.x + (Math.random() - 0.5) * 0.02;
-      dPos.array[i * 3 + 2] = headPos.z + 0.05;
-      
-      if (yy < headPos.y - 1.2) { 
-        yy = headPos.y - 0.05; 
-      }
-      dPos.array[i * 3 + 1] = yy;
-    }
-    dPos.needsUpdate = true;
-    droolMat.opacity = 0.4 + bass * 0.5 + Math.min(corr, 1.0) * 0.4 + bassOnset * 0.3;
-
-    // Organic background dust update
-    const posAttr = bgParticles.geometry.attributes.position;
-    for (let i = 0; i < PCOUNT; i++) {
-      let y = posAttr.array[i * 3 + 1];
-      y += 0.016 * speeds[i] * (1.0 + treble * 1.0);
-      if (y > 16.0) y = -16.0;
-      posAttr.array[i * 3 + 1] = y;
-    }
-    posAttr.needsUpdate = true;
-    pMat.color.setHSL(THREE.MathUtils.lerp(0.06, hueAccum % 1, Math.min(corr, 1.0)), THREE.MathUtils.lerp(0.2, 0.75, Math.min(corr, 1.0)), 0.55);
-    pMat.opacity = 0.3 + Math.min(corr, 1.0) * 0.35 + treble * 0.15 + surgeEnergy * 0.15 + trebleOnset * 0.2;
-
-    // Update Splash/Bubble particles
-    if (splashTriggered && bubbleMat.opacity > 0.01) {
-      const bPosAttr = bubblePoints.geometry.attributes.position;
-      for (let i = 0; i < BCOUNT; i++) {
-        let bx = bPosAttr.getX(i);
-        let by = bPosAttr.getY(i);
-        let bz = bPosAttr.getZ(i);
-        
-        if (by > -50.0) {
-          bx += bubbleVels[i * 3] * dt;
-          by += bubbleVels[i * 3 + 1] * dt;
-          bz += bubbleVels[i * 3 + 2] * dt;
-          
-          bubbleVels[i * 3 + 1] -= dt * 9.8; 
-          
-          bPosAttr.setXYZ(i, bx, by, bz);
-        }
-      }
-      bPosAttr.needsUpdate = true;
-      bubbleMat.opacity -= dt * 0.15; 
-    }
-
-    // --- Shockwave Rings update (bass-driven) ---
-    if (bassHit && time - lastRingTime > 0.25) {
-      triggerRing(time);
-    }
-    // Extra rings on strong bass hits
-    if (bassOnset > 0.5 && time - lastRingTime > 0.15) {
-      triggerRing(time);
-    }
-    rings.forEach(r => {
-      if (r.active) {
-        r.scale += dt * 6.0 * (1.0 + bass * 2.0);
-        r.mesh.scale.setScalar(r.scale);
-        r.mesh.material.opacity = Math.max(0, 0.7 - r.scale * 0.08) * Math.min(corr + 0.1, 1.0);
-        if (r.scale > 12) { r.active = false; r.mesh.visible = false; }
-      }
-    });
-
-    // --- Wireframe Geometric Polyhedra update ---
-    const geoActiveCount = Math.floor(progress * MAX_GEOS * 0.7);
-    geoShapes.forEach((g, i) => {
-      if (i < geoActiveCount) {
-        g.mesh.visible = true;
-        const sp = Math.min(1.0, (progress * MAX_GEOS * 0.7 - i) * 0.3);
-        g.spawnProgress = Math.min(1.0, g.spawnProgress + dt * 0.5);
-        
-        const t2 = time * g.speed + g.seed;
-        const r = g.orbitR * (1.0 + bass * 0.3) * g.spawnProgress;
-        g.mesh.position.x = Math.sin(t2) * r;
-        g.mesh.position.y = 3.0 + Math.cos(t2 * 0.7) * r * 0.5 + Math.sin(t2 * 0.3) * 1.5;
-        g.mesh.position.z = Math.cos(t2) * r;
-        
-        g.mesh.rotation.x += dt * (0.3 + treble * 0.8);
-        g.mesh.rotation.y += dt * (0.2 + bass * 0.5);
-        g.mesh.rotation.z += dt * 0.15;
-        
-        g.mat.opacity = sp * 0.35 * (0.5 + bass * 0.5 + corr * 0.3 + onsetStrength * 0.4);
-        g.mat.color.setHSL((hueAccum + i * 0.05) % 1, 0.85, 0.45 + bass * 0.15);
-        g.mesh.scale.setScalar(sp * (1.0 + corr * 0.3));
-      } else {
-        g.mesh.visible = false;
-      }
-    });
-
-    // --- Vertical Light Beams update ---
-    const beamActive = Math.floor(progress * beamCount);
-    beams.forEach((b, i) => {
-      if (i < beamActive) {
-        b.mesh.visible = true;
-        const phase = Math.sin(time * 0.5 + b.seed) * 0.5 + 0.5;
-        b.mat.opacity = phase * (0.15 + bass * 0.3 + surgeEnergy * 0.25 + trebleOnset * 0.3) * Math.min(corr + 0.15, 1.0);
-        b.mat.color.setHSL((hueAccum * 0.7 + i * 0.12) % 1, 0.9, 0.5);
-        b.mesh.position.y = Math.sin(time * 0.3 + b.seed) * 3;
-        b.mesh.scale.x = 1.0 + bass * 3.0 + surgeEnergy * 2.0 + trebleOnset * 2.0;
-        b.mesh.scale.z = b.mesh.scale.x;
-        b.mesh.scale.y = 1.0 + trebleOnset * 1.5;
-      } else {
-        b.mesh.visible = false;
-      }
-    });
-
-    // --- Horizontal Light Sheets update ---
-    const sheetActive = Math.floor(progress * sheetCount * 1.5);
-    sheets.forEach((s, i) => {
-      if (i < sheetActive) {
-        s.mesh.visible = true;
-        const wave = Math.sin(time * 0.2 + s.seed + i * 1.5) * 0.5 + 0.5;
-        s.mat.opacity = wave * 0.08 * (0.3 + mid * 0.7 + corr * 0.4 + trebleOnset * 0.5);
-        s.mat.color.setHSL((hueAccum * 0.5 + i * 0.25) % 1, 0.75, 0.35);
-        s.mesh.position.y = s.baseY + Math.sin(time * 0.15 + s.seed) * 2;
-        s.mesh.rotation.z = time * 0.02 * (i % 2 === 0 ? 1 : -1);
-      } else {
-        s.mesh.visible = false;
-      }
-    });
-
-    // --- Spiral Vortex Particles update ---
-    const vortexOpacity = THREE.MathUtils.smoothstep(corr, 0.05, 0.4) * 0.6;
-    vortexMat.opacity = vortexOpacity * (0.3 + bass * 0.5 + surgeEnergy * 0.3 + midOnset * 0.4);
-    vortexMat.color.setHSL((hueAccum * 1.3) % 1, 0.85, 0.5);
-    const vPos = vortexPoints.geometry.attributes.position;
-    for (let i = 0; i < vortexCount; i++) {
-      let angle = vPos.array[i * 3];
-      let vy = vPos.array[i * 3 + 1];
-      let vr = vPos.array[i * 3 + 2];
-      
-      angle += dt * (0.8 + bass * 1.5 + corr * 0.5 + midOnset * 2.0);
-      vy += dt * vortexVel[i * 3 + 1] * (1.0 + bass);
-      vr += dt * 0.05 * Math.sin(time * 0.3 + i);
-      
-      if (vy > 10) { vy = -10; vr = 0.5 + Math.random() * 3; }
-      if (vr > 5) vr = 0.5;
-      
-      vPos.array[i * 3] = Math.cos(angle) * vr;
-      vPos.array[i * 3 + 1] = vy;
-      vPos.array[i * 3 + 2] = Math.sin(angle) * vr;
-    }
-    vPos.needsUpdate = true;
-
-    // --- Fog Color Cycling (psychedelic palette over time) ---
-    if (time > 2.5 && time < LAND_TRANSITION_START) {
-      const fogHue = (hueAccum * 0.3 + progress * 0.5) % 1;
-      const fogTarget = new THREE.Color().setHSL(fogHue, 0.6 + corr * 0.3, 0.04 + bass * 0.02);
-      scene.fog.color.lerp(fogTarget, 0.02);
-    }
-
-    // --- Land Scene Transition at 28:30 ---
-    if (time >= LAND_TRANSITION_START && !landTransitioned) {
-      landT = Math.min(1.0, (time - LAND_TRANSITION_START) / (LAND_TRANSITION_END - LAND_TRANSITION_START));
-    }
-    if (landT >= 1.0) landTransitioned = true;
-
-    if (landT > 0) {
-      landGroup.visible = true;
-      const lt = landT;
-
-      // Underwater elements fade out
-      sea.visible = lt < 0.6;
-      sea2.visible = lt < 0.5;
-      sea3.visible = lt < 0.4;
-      abyss.visible = lt < 0.7;
-      abyss2.visible = lt < 0.6;
-      bgParticles.visible = lt < 0.5;
-      bubblePoints.visible = lt < 0.5;
-
-      // Hide all effects during land scene
-      floatingEyes.forEach(e => e.visible = false);
-      tendrilConnectors.forEach(tc => { tc.line.visible = false; });
-      lesions.forEach(m => m.visible = false);
-      looseChunks.forEach(m => m.visible = false);
-      drool.visible = false;
-      mouthClosed.visible = false;
-      mouthDeep.visible = false;
-      rings.forEach(r => { r.active = false; r.mesh.visible = false; r.mesh.material.opacity = 0; });
-      geoShapes.forEach(g => g.mesh.visible = false);
-      beams.forEach(b => b.mesh.visible = false);
-      sheets.forEach(s => s.mesh.visible = false);
-      vortexPoints.visible = false;
-
-      // Ground and sky fade in
-      groundMat.opacity = lt;
-      skyMat.opacity = lt;
-
-      // Sky color transitions from dark to bright blue
-      skyMat.color.setHSL(0.58, 0.55 + lt * 0.15, 0.15 + lt * 0.4);
-
-      // Sunlight ramps up
-      sunLight.intensity = lt * 2.8;
-      ambientLand.intensity = lt * 0.8;
-
-      // Camera transitions to diagonal-above view
-      const targetCamPos = new THREE.Vector3(4, 7, 6);
-      camera.position.lerp(targetCamPos, lt * 0.04);
-
-      // Model repositions to lie on ground
-      if (fbxModel) {
-        const targetModelY = -0.2;
-        fbxModel.position.y += (targetModelY - fbxModel.position.y) * lt * 0.04;
-        fbxModel.position.x += (0 - fbxModel.position.x) * lt * 0.04;
-        fbxModel.position.z += (0 - fbxModel.position.z) * lt * 0.04;
-        // Model already horizontal from sinking (rotation.z = PI/2), keep it
-      }
-
-      // Look at the model on the ground
-      const lookTarget = new THREE.Vector3(0, 0, 0);
-      if (fbxModel) fbxModel.getWorldPosition(lookTarget);
-      lookTarget.y += 0.3;
-      camera.lookAt(lookTarget);
-
-      // Fog clears to transparent bright
-      scene.fog.color.lerp(new THREE.Color(0x88bbee), lt * 0.06);
-      scene.fog.density = THREE.MathUtils.lerp(scene.fog.density, 0.012, lt * 0.04);
-
-      // Lighting to sunny outdoor
-      key.color.lerp(new THREE.Color(0xfff4d0), lt * 0.05);
-      key.intensity = THREE.MathUtils.lerp(key.intensity, 1.8, lt * 0.04);
-      fill.color.lerp(new THREE.Color(0x8899cc), lt * 0.05);
-      fill.intensity = THREE.MathUtils.lerp(fill.intensity, 0.6, lt * 0.04);
-      underLight.intensity = THREE.MathUtils.lerp(underLight.intensity, 0.0, lt * 0.06);
-
-      // Reduce post-processing for clean outdoor look
-      postUniforms.uTrailAmount.value *= (1.0 - lt * 0.95);
-    }
-
-    // --- Post-Processing Shader Intensity Ramp ---
-    // Corruption-driven extra effects that grow over time
-    postUniforms.uCorruption.value = Math.min(corr, 1.2) * (1.0 + progress * 0.5);
-
-    // Set post uniforms
-    postUniforms.uTime.value = time;
-    postUniforms.uCorruption.value = Math.min(corr, 1.2) + onsetStrength * 0.3;
-    postUniforms.uBass.value = bass + bassOnset * 0.5;
-    postUniforms.uSurge.value = Math.min(surgeEnergy, 1.0);
-    
-    // Trail feedback amount rises irreversibly over time (burns screen details)
-    const baseTrail = parseFloat(trailSlider.value) / 100;
-    const dynamicTrail = THREE.MathUtils.lerp(baseTrail, 0.98, progress);
-    postUniforms.uTrailAmount.value = dynamicTrail;
-  }
-
-  // --- Real-time Loop Execution ---
-  const clock = new THREE.Clock(); 
-  clock.start();
-  
-  let fpsFrames = 0, fpsT = performance.now();
-  let tempFreqData = new Uint8Array(256); // Pre-allocated
-
-  function animate() {
-    requestAnimationFrame(animate);
-    
-    const dtRaw = Math.min(clock.getDelta(), 0.05);
-    
-    // Synchronize playTime with audio playback context
-    if (audioEl && playbackActive) {
-      playTime = audioEl.currentTime;
-    } else if (playbackActive) {
-      playTime += dtRaw;
-    }
-    
-    const t = playTime;
-    const dt = playbackActive ? dtRaw : 0;
-
-    // Gather real-time audio analysis
-    if (analyser) {
-      analyser.getByteFrequencyData(tempFreqData);
-    } else {
-      tempFreqData.fill(0);
-    }
-
-    // Update animation mixer
-    if (mixer && playbackActive) {
-      mixer.update(dtRaw);
-    }
-
-    // Render frame
-    drawFrame(t, dt, tempFreqData);
-
-    // Update HUD readouts
-    const m = Math.floor(t / 60);
-    const s = Math.floor(t % 60);
-    timeValEl.textContent = `${m}:${String(s).padStart(2,'0')}`;
-    updateSeekBar(t);
-    
-    // Perform feedback rendering ping-pong swap
-    renderer.setRenderTarget(sceneRT);
-    renderer.clear();
-    renderer.render(scene, camera);
-
-    postUniforms.tDiffuse.value = sceneRT.texture;
-    postUniforms.tPrevFrame.value = rt2.texture; // feedback buffer
-
-    renderer.setRenderTarget(rt1);
-    renderer.clear();
-    renderer.render(postScene, postCamera);
-
-    // Present current post-processed frame to the screen
-    renderer.setRenderTarget(null);
-    renderer.clear();
-    screenUniforms.tDiffuse.value = rt1.texture;
-    renderer.render(screenScene, screenCamera);
-
-    // Swap buffers
-    let temp = rt1;
-    rt1 = rt2;
-    rt2 = temp;
-
-    // Display FPS
-    fpsFrames++;
-    const now = performance.now();
-    if (now - fpsT >= 500) {
-      fpsValEl.textContent = (Math.round(fpsFrames * 1000 / (now - fpsT))) + ' fps';
-      fpsT = now; 
-      fpsFrames = 0;
-    }
-  }
-
-  applyResolution();
-  animate();
+applyResolution();animate();
 })();
 </script>
 </body>
