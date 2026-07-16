@@ -9,7 +9,7 @@
 <style>
   html,body{margin:0;padding:0;overflow:hidden;background:#030102;font-family:"Outfit",sans-serif;color:#e5d5d5;}
   #stage{position:fixed;inset:0;}
-  canvas{image-rendering:pixelated;display:block;}
+  canvas{display:block;}
   
   /* Glassmorphic UI container */
   #ui{
@@ -221,9 +221,9 @@
   let rtW = Math.max(64, Math.floor(window.innerWidth / RES_DIVISOR));
   let rtH = Math.max(64, Math.floor(window.innerHeight / RES_DIVISOR));
 
-  let sceneRT = new THREE.WebGLRenderTarget(rtW, rtH, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
-  let rt1 = new THREE.WebGLRenderTarget(rtW, rtH, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
-  let rt2 = new THREE.WebGLRenderTarget(rtW, rtH, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+  let sceneRT = new THREE.WebGLRenderTarget(rtW, rtH, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+  let rt1 = new THREE.WebGLRenderTarget(rtW, rtH, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+  let rt2 = new THREE.WebGLRenderTarget(rtW, rtH, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
 
   // Post-processing setup
   const postScene = new THREE.Scene();
@@ -482,6 +482,7 @@
 
   // --- Loader Setup for Attached Model ---
   let fbxModel = null;
+  let mixer = null;
   const bonesMap = {};
   const defaultBonePositions = {};
   let tendrilConnectors = [];
@@ -490,11 +491,11 @@
   const baseColorTex = textureLoader.load('ps2-psx-lowpoly-character/textures/Base_Color.png');
   const bodyColorTex = textureLoader.load('ps2-psx-lowpoly-character/textures/Body_Base_color.png');
 
-  // Nearest filter for pixelated PS2 look
-  baseColorTex.minFilter = THREE.NearestFilter;
-  baseColorTex.magFilter = THREE.NearestFilter;
-  bodyColorTex.minFilter = THREE.NearestFilter;
-  bodyColorTex.magFilter = THREE.NearestFilter;
+  // Texture filtering for smooth look
+  baseColorTex.minFilter = THREE.LinearFilter;
+  baseColorTex.magFilter = THREE.LinearFilter;
+  bodyColorTex.minFilter = THREE.LinearFilter;
+  bodyColorTex.magFilter = THREE.LinearFilter;
 
   // Search rig hierarchy for skeleton bones (case-insensitive substring checks)
   function mapBones(object) {
@@ -703,7 +704,16 @@
     });
     
     initializeTendrils();
-    statusEl.textContent = "モデルをロード完了しました。";
+    
+    // Setup animation mixer
+    if (fbx.animations && fbx.animations.length > 0) {
+      mixer = new THREE.AnimationMixer(fbx);
+      const action = mixer.clipAction(fbx.animations[0]);
+      action.play();
+      statusEl.textContent = "モデル＆アニメーションをロード完了。";
+    } else {
+      statusEl.textContent = "モデルをロード完了。（アニメーションなし）";
+    }
   }, (xhr) => {
     const pct = Math.round((xhr.loaded / xhr.total) * 100);
     statusEl.textContent = `モデルをロード中: ${pct}%`;
@@ -818,14 +828,17 @@
         return c.z + c.y*(rgb-0.5)*(1.0-abs(2.0*c.z-1.0));
       }
       void main(){
-        float hue = fract(uTime*0.035 + vPos.x*0.015 + vPos.z*0.015 + vHeight*0.06 + 0.95);
-        vec3 psychedelic = hsl2rgb(vec3(hue,0.8,0.28+0.22*vHeight+uMid*0.2));
-        vec3 murky = mix(vec3(0.03,0.04,0.035), vec3(0.16,0.02,0.03), 0.5+0.5*uCorruption);
-        murky = mix(vec3(0.03,0.04,0.035), murky, vHeight);
-        vec3 col = mix(murky, psychedelic, clamp(uCorruption,0.0,1.0));
-        float splotch = step(0.85, fract(sin(vPos.x*13.0+vPos.z*7.0+uTime*0.2)*43758.5));
-        col *= 1.0 - splotch * uCorruption * 0.6;
-        gl_FragColor = vec4(col, 0.92);
+        float hue = fract(uTime*0.02 + vPos.x*0.01 + vPos.z*0.01 + vHeight*0.04 + 0.58);
+        vec3 ocean = hsl2rgb(vec3(hue, 0.7+uCorruption*0.2, 0.18+0.15*vHeight+uMid*0.15));
+        vec3 deepBlue = vec3(0.01, 0.04, 0.12);
+        vec3 surfaceBlue = vec3(0.02, 0.08, 0.22);
+        vec3 base = mix(deepBlue, surfaceBlue, 0.4+0.3*vHeight);
+        vec3 col = mix(base, ocean, clamp(uCorruption*0.8, 0.0, 1.0));
+        float foam = smoothstep(0.3, 0.6, vHeight) * (0.5+uMid*0.5);
+        col += vec3(0.08, 0.12, 0.18) * foam;
+        float splotch = step(0.88, fract(sin(vPos.x*13.0+vPos.z*7.0+uTime*0.2)*43758.5));
+        col *= 1.0 - splotch * uCorruption * 0.5;
+        gl_FragColor = vec4(col, 0.88);
       }
     `
   });
@@ -1330,6 +1343,15 @@
     // Stop audio
     if (audioEl) { audioEl.pause(); audioEl.currentTime = 0; }
     playbackActive = false;
+    
+    // Reset animation mixer
+    if (mixer) {
+      mixer.stopAllAction();
+      if (fbxModel && fbxModel.animations && fbxModel.animations.length > 0) {
+        const action = mixer.clipAction(fbxModel.animations[0]);
+        action.play();
+      }
+    }
     
     // Reset all visual state
     corruptionRaw = 0;
@@ -1932,6 +1954,11 @@
       analyser.getByteFrequencyData(tempFreqData);
     } else {
       tempFreqData.fill(0);
+    }
+
+    // Update animation mixer
+    if (mixer && playbackActive) {
+      mixer.update(dtRaw);
     }
 
     // Render frame
