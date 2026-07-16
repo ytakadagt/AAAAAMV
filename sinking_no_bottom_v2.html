@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Sinking — No Bottom (Fixed)</title>
+<style>
+  html,body{margin:0;padding:0;overflow:hidden;background:#000;font-family:"Courier New",monospace;}
+  #stage{position:fixed;inset:0;}
+  canvas{image-rendering:pixelated;}
+  #ui{
+    position:fixed;left:50%;bottom:20px;transform:translateX(-50%);
+    display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;
+    background:rgba(10,4,6,0.6);backdrop-filter:blur(6px);
+    padding:10px 14px;border-radius:4px;border:1px solid rgba(255,150,150,0.15);
+    max-width:94vw;z-index:10;
+  }
+  #ui button, #ui label.btn, #ui select{
+    background:#180d0d;color:#e8c9c9;border:1px solid rgba(255,150,150,0.3);
+    padding:8px 12px;border-radius:3px;font-size:12px;font-family:"Courier New",monospace;
+    cursor:pointer;white-space:nowrap;letter-spacing:.03em;
+  }
+  #ui button:hover, #ui label.btn:hover, #ui select:hover{background:#241414;}
+  #ui button.recording{background:#5a0a0a;color:#fff;border-color:#c33;}
+  #ui input[type=file]{display:none;}
+  #ui .slidewrap{display:flex;flex-direction:column;color:#ae8f8f;font-size:10px;align-items:center;gap:2px;}
+  #ui input[type=range]{width:100px;accent-color:#c66;}
+  #title{
+    position:fixed;top:20px;left:50%;transform:translateX(-50%);
+    color:#d8b8b8;letter-spacing:.4em;font-size:11px;opacity:.55;text-transform:uppercase;z-index:10;
+  }
+  #status{
+    position:fixed;top:46px;left:50%;transform:translateX(-50%);
+    color:#ae7f7f;font-size:10px;opacity:.6;z-index:10;text-align:center;
+  }
+  #corruptMeter{
+    position:fixed;top:20px;right:20px;color:#c9a09f;font-size:10px;opacity:.6;z-index:10;
+    letter-spacing:.05em;
+  }
+  #fpsReadout{
+    position:fixed;top:46px;right:20px;color:#7fa0a0;font-size:10px;opacity:.55;z-index:10;
+    letter-spacing:.05em;font-family:"Courier New",monospace;
+  }
+  #recInfo{
+    position:fixed;top:72px;right:20px;color:#d97070;font-size:10px;opacity:.85;z-index:10;
+    letter-spacing:.05em;display:none;max-width:50vw;text-align:right;
+  }
+  #recInfo a{color:#e8a0a0;text-decoration:underline;}
+</style>
+</head>
+<body>
+<div id="title">Sinking</div>
+<div id="status">音楽を再生すると始まります</div>
+<div id="corruptMeter">浸食度: 0%</div>
+<div id="fpsReadout">— fps</div>
+<div id="recInfo"></div>
+<div id="stage"></div>
+
+<div id="ui">
+  <label class="btn">音楽を読み込む<input type="file" id="fileInput" accept="audio/*"></label>
+  <button id="micBtn">マイク入力</button>
+  <button id="playBtn">再生 / 一時停止</button>
+  <button id="recBtn">● 録画開始</button>
+  <div class="slidewrap">沈む速さ<input type="range" id="sinkSpeed" min="0" max="100" value="30"></div>
+  <div class="slidewrap">崩壊の進行速度<input type="range" id="corruptSpeed" min="0" max="100" value="50"></div>
+  <div class="slidewrap" style="min-width:140px;">
+    内部解像度
+    <select id="quality">
+      <option value="1.0" selected>高 (フル: ÷1)</option>
+      <option value="1.5">標準 (÷1.5)</option>
+      <option value="2.0">レトロ低 (÷2)</option>
+    </select>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  const stage = document.getElementById('stage');
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x0a0806, 0.05);
+
+  const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 100);
+  camera.position.set(0, 2.0, 8.5);
+
+  const renderer = new THREE.WebGLRenderer({
+    antialias:false,
+    alpha:false,
+    preserveDrawingBuffer:true,
+    powerPreference:'high-performance'
+  });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  stage.appendChild(renderer.domElement);
+
+  let RES_DIVISOR = 1.0;
+  let rtW = Math.max(64, Math.floor(window.innerWidth  / RES_DIVISOR));
+  let rtH = Math.max(64, Math.floor(window.innerHeight / RES_DIVISOR));
+  
+  // THREE.RGBFormat is deprecated, using default
+  const renderTarget = new THREE.WebGLRenderTarget(rtW, rtH, {
+    minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter
+  });
+
+  const postScene = new THREE.Scene();
+  const postCamera = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+  const postUniforms = {
+    tDiffuse:    { value: renderTarget.texture },
+    uResolution: { value: new THREE.Vector2(rtW, rtH) },
+    uTime:       { value: 0 },
+    uCorruption: { value: 0 },
+    uBass:       { value: 0 },
+    uSurge:      { value: 0 }
+  };
+  const postMat = new THREE.ShaderMaterial({
+    uniforms: postUniforms,
+    vertexShader:`varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy,0.0,1.0); }`,
+    fragmentShader:`
+      precision highp float;
+      varying vec2 vUv;
+      uniform sampler2D tDiffuse;
+      uniform vec2 uResolution;
+      uniform float uTime;
+      uniform float uCorruption;
+      uniform float uBass;
+      uniform float uSurge;
+
+      vec3 rgb2hsv(vec3 c){
+        vec4 K=vec4(0.0,-1.0/3.0,2.0/3.0,-1.0);
+        vec4 p=mix(vec4(c.bg,K.wz), vec4(c.gb,K.xy), step(c.b,c.g));
+        vec4 q=mix(vec4(p.xyw,c.r), vec4(c.r,p.yzx), step(p.x,c.r));
+        float d=q.x-min(q.w,q.y); float e=1.0e-10;
+        return vec3(abs(q.z+(q.w-q.y)/(6.0*d+e)), d/(q.x+e), q.x);
+      }
+      vec3 hsv2rgb(vec3 c){
+        vec4 K=vec4(1.0,2.0/3.0,1.0/3.0,3.0);
+        vec3 p=abs(fract(c.xxx+K.xyz)*6.0-K.www);
+        return c.z*mix(K.xxx, clamp(p-K.xxx,0.0,1.0), c.y);
+      }
+      float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)))*43758.5453); }
+      float hash13(vec3 p3){ p3=fract(p3*0.1031); p3+=dot(p3, p3.yzx+33.33); return fract((p3.x+p3.y)*p3.z); }
+
+      void main(){
+        vec2 uv = vUv;
+        float corr = clamp(uCorruption, 0.0, 1.2);
+
+        vec2 warp = vec2(
+          sin(uv.y*9.0+uTime*0.9) + sin(uv.y*3.1-uTime*0.4),
+          cos(uv.x*8.0+uTime*0.7) + cos(uv.x*2.6+uTime*0.5)
+        ) * 0.0028 * corr;
+        uv += warp;
+
+        vec3 color = texture2D(tDiffuse, uv).rgb;
+
+        vec2 dir = uv - 0.5;
+        float aberr = 0.0015 + corr*0.004 + uBass*0.004 + uSurge*0.006;
+        float rr = texture2D(tDiffuse, uv - dir*aberr).r;
+        float bb = texture2D(tDiffuse, uv + dir*aberr).b;
+        color = vec3(rr, color.g, bb);
+
+        float levels = 30.0;
+        float threshold = hash(floor(uv*uResolution*0.5));
+        color = floor(color*levels + threshold) / levels;
+
+        vec2 cuv = floor(uv*uResolution*0.018);
+        float cell = abs(hash(cuv)-0.5) * 0.05 * corr;
+        color -= cell;
+
+        vec3 hsv = rgb2hsv(color);
+        hsv.x = fract(hsv.x + uTime*0.035*corr);
+        hsv.y = mix(hsv.y*0.3, min(hsv.y*2.0,1.0), corr);
+        hsv.z = clamp(hsv.z*mix(1.0,1.08,corr), 0.0, 1.0);
+        vec3 vivid = hsv2rgb(hsv);
+        float gray = dot(color, vec3(0.299,0.587,0.114));
+        vec3 sickly = mix(vec3(gray), color, 0.3) * vec3(0.78,0.85,0.8);
+        color = mix(sickly, vivid, corr);
+
+        float bloom = hash(floor(uv*7.0) + floor(uTime*0.4));
+        bloom = smoothstep(0.55, 0.95, bloom);
+        color += vec3(0.55,0.03,0.10)*bloom*corr*(0.25+uBass*0.6)*0.6;
+
+        float c1 = hash13(vec3(floor(uv*180.0), floor(uTime*7.0)));
+        float crack = smoothstep(0.985-corr*0.04, 1.0, c1);
+        color -= crack * 0.4 * corr;
+
+        float stain = smoothstep(0.92, 1.0, hash13(vec3(floor(uv*45.0), floor(uTime*3.0))));
+        color += vec3(0.45,0.05,0.05) * stain * corr * 0.7;
+
+        float organ = smoothstep(0.55, 0.95, hash(floor(uv*3.5) + floor(uTime*0.25)));
+        color += vec3(0.6,0.05,0.05) * organ * corr * (0.15 + uBass*0.4);
+
+        float pulse = 1.0 + uBass*0.06*corr + uSurge*0.05;
+        float vig = smoothstep(0.98, 0.18, length(uv-0.5)*pulse);
+        color *= mix(vig, 1.0, 0.4) * mix(1.0, 0.72, corr*0.4);
+
+        float grain = hash(uv*uResolution + uTime*55.0) - 0.5;
+        color += grain * mix(0.02, 0.075, corr);
+        color += vec3(0.5,0.15,0.45) * uSurge * 0.12;
+
+        float drop = step(0.998 - corr*0.005, hash(floor(uv*220.0)+floor(uTime*15.0)));
+        color *= 1.0 - drop * 0.9;
+
+        gl_FragColor = vec4(clamp(color,0.0,1.0), 1.0);
+      }
+    `
+  });
+  postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2), postMat));
+
+  function applyResolution(){
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    rtW = Math.max(64, Math.floor(window.innerWidth  / RES_DIVISOR));
+    rtH = Math.max(64, Math.floor(window.innerHeight / RES_DIVISOR));
+    renderTarget.setSize(rtW, rtH);
+    postUniforms.uResolution.value.set(rtW, rtH);
+  }
+  window.addEventListener('resize', applyResolution);
+
+  let mouseX=0;
+  window.addEventListener('mousemove', e=>{ mouseX = (e.clientX/window.innerWidth - 0.5); });
+
+  document.getElementById('quality').addEventListener('change', e=>{
+    RES_DIVISOR = parseFloat(e.target.value);
+    applyResolution();
+  });
+
+  scene.add(new THREE.AmbientLight(0x3a3230, 0.9));
+  const key = new THREE.PointLight(0xc0a090, 1.3, 30); key.position.set(3,5,4); scene.add(key);
+  const fill = new THREE.PointLight(0x552a30, 1.0, 30); fill.position.set(-4,-1,3); scene.add(fill);
+  const underLight = new THREE.PointLight(0x3a0a14, 1.2, 18); underLight.position.set(0,-3,1); scene.add(underLight);
+
+  function addRetroBody(material){
+    material.onBeforeCompile = (shader) => {
+      shader.uniforms.uSnap = { value: 200.0 };
+      shader.uniforms.uTimeU = { value: 0.0 };
+      shader.uniforms.uOrganicAmp = { value: 0.0 };
+      shader.vertexShader = 'uniform float uSnap;\nuniform float uTimeU;\nuniform float uOrganicAmp;\n' + shader.vertexShader;
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        `
+        #include <begin_vertex>
+        { float n1 = sin(position.x*7.0+uTimeU*1.4)*sin(position.y*6.0-uTimeU*1.0)*sin(position.z*8.0+uTimeU*0.8);
+          transformed += normal * n1 * uOrganicAmp; }
+        `
+      );
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <project_vertex>',
+        `
+        #include <project_vertex>
+        { vec4 snapped = gl_Position;
+          snapped.xyz /= snapped.w;
+          snapped.xy = floor(snapped.xy * uSnap) / uSnap;
+          snapped.xyz *= snapped.w;
+          gl_Position = snapped; }
+        `
+      );
+      material.userData.shader = shader;
+    };
+  }
+
+  const skinBase = new THREE.Color(0xc4a68c);
+  const skinMat = new THREE.MeshStandardMaterial({
+    color: skinBase.clone(), roughness:0.7, metalness:0.04,
+    emissive:0x0a0605, emissiveIntensity:0.12, flatShading:true
+  });
+  addRetroBody(skinMat);
+
+  const lesionMat = new THREE.MeshStandardMaterial({ color:0x2a0a08, roughness:0.4, metalness:0.1, emissive:0x140606, emissiveIntensity:0.6, flatShading:true });
+  addRetroBody(lesionMat);
+  const eyeWhiteMat = new THREE.MeshStandardMaterial({ color:0xeaeaa0, roughness:0.2, emissive:0x6a6a40, emissiveIntensity:0.3, flatShading:true });
+  const eyePupilMat = new THREE.MeshStandardMaterial({ color:0x0a0000, emissive:0xff2222, emissiveIntensity:1.6, flatShading:true });
+
+  function seg(rT,rB,h,rad){ return new THREE.Mesh(new THREE.CylinderGeometry(rT,rB,h,rad||8,1), skinMat); }
+  function joint(r){ return new THREE.Mesh(new THREE.IcosahedronGeometry(r,1), skinMat); }
+
+  const human = new THREE.Group();
+  const profile = [[0.17,0.00],[0.20,0.05],[0.16,0.16],[0.135,0.27],[0.17,0.37],[0.215,0.46],[0.235,0.53],[0.20,0.59]].map(p=>new THREE.Vector2(p[0],p[1]));
+  const torso = new THREE.Mesh(new THREE.LatheGeometry(profile, 10), skinMat);
+  torso.rotation.z = Math.PI/2;
+  torso.scale.set(0.62,0.62,0.62);
+  human.add(torso);
+
+  const neck = seg(0.065,0.075,0.11,8); neck.position.set(0.62,0,0); neck.rotation.z=Math.PI/2; human.add(neck);
+
+  const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.135,1), skinMat);
+  head.scale.set(0.92,1.12,0.86); head.position.set(0.80,0,0); human.add(head);
+
+  const eyeL=new THREE.Group(), eyeR=new THREE.Group();
+  eyeL.position.set(0.86,0.045,0.105); eyeR.position.set(0.86,-0.045,0.105);
+  eyeL.add(new THREE.Mesh(new THREE.SphereGeometry(0.025,8,6), eyeWhiteMat));
+  eyeR.add(new THREE.Mesh(new THREE.SphereGeometry(0.025,8,6), eyeWhiteMat));
+  const pupilL = new THREE.Mesh(new THREE.SphereGeometry(0.011,8,6), eyePupilMat);
+  const pupilR = new THREE.Mesh(new THREE.SphereGeometry(0.011,8,6), eyePupilMat);
+  pupilL.position.z = pupilR.position.z = 0.018;
+  eyeL.add(pupilL); eyeR.add(pupilR);
+  human.add(eyeL); human.add(eyeR);
+
+  const mouthClosed = new THREE.Mesh(new THREE.BoxGeometry(0.001,0.06,0.005), lesionMat);
+  mouthClosed.position.set(0.86,-0.07,0.118); human.add(mouthClosed);
+  const mouthDeep = new THREE.Mesh(new THREE.BoxGeometry(0.001,0.02,0.04), lesionMat);
+  mouthDeep.position.set(0.86,-0.07,0.135); human.add(mouthDeep);
+
+  function buildLimb(o){
+    const root = new THREE.Group(); root.position.copy(o.origin);
+    const u = seg(o.uTop,o.uBot,o.uLen,7); u.position.y=-o.uLen/2; u.rotation.z=Math.PI/2; root.add(u);
+    const j = joint(o.jointR); j.position.x=-o.uLen; root.add(j);
+    const lower = new THREE.Group(); lower.position.x=-o.uLen; root.add(lower);
+    const lo = seg(o.lTop,o.lBot,o.lLen,7); lo.position.x=-o.lLen/2; lo.rotation.z=Math.PI/2; lower.add(lo);
+    const ex = new THREE.Mesh(new THREE.BoxGeometry(o.extDim.x,o.extDim.y,o.extDim.z), skinMat);
+    ex.position.set(-o.lLen - o.extDim.x/2 + 0.01, o.extOffset.y, o.extOffset.z); lower.add(ex);
+    return { root, lower };
+  }
+
+  const armL = buildLimb({origin:new THREE.Vector3(-0.05,0.20,0), uTop:0.055,uBot:0.045,uLen:0.30,jointR:0.05, lTop:0.045,lBot:0.035,lLen:0.27, extDim:new THREE.Vector3(0.10,0.06,0.03), extOffset:new THREE.Vector3(0,-0.05,0.01) });
+  armL.root.rotation.z=-1.10; human.add(armL.root);
+  const armR = buildLimb({origin:new THREE.Vector3(-0.05,-0.20,0), uTop:0.055,uBot:0.045,uLen:0.30,jointR:0.05, lTop:0.045,lBot:0.035,lLen:0.27, extDim:new THREE.Vector3(0.10,0.06,0.03), extOffset:new THREE.Vector3(0,0.05,0.01) });
+  armR.root.rotation.z=1.10; human.add(armR.root);
+  const legL = buildLimb({origin:new THREE.Vector3(-0.55,0.12,0), uTop:0.085,uBot:0.07,uLen:0.44,jointR:0.065, lTop:0.06,lBot:0.045,lLen:0.42, extDim:new THREE.Vector3(0.17,0.075,0.05), extOffset:new THREE.Vector3(0.05,0,0) });
+  legL.root.rotation.z=0.18; human.add(legL.root);
+  const legR = buildLimb({origin:new THREE.Vector3(-0.55,-0.12,0), uTop:0.085,uBot:0.07,uLen:0.44,jointR:0.065, lTop:0.06,lBot:0.045,lLen:0.42, extDim:new THREE.Vector3(0.17,0.075,0.05), extOffset:new THREE.Vector3(0.05,0,0) });
+  legR.root.rotation.z=-0.18; human.add(legR.root);
+
+  const lesions=[];
+  for(let i=0;i<14;i++){
+    const s=0.015+Math.random()*0.035;
+    const m=new THREE.Mesh(new THREE.SphereGeometry(s,6,5),lesionMat);
+    m.position.set((Math.random()-0.5)*0.55,(Math.random()-0.5)*0.35,(Math.random()-0.5)*0.62);
+    m.scale.set(1+Math.random()*0.6,1+Math.random()*0.6,1+Math.random()*0.4);
+    m.userData.phase=Math.random()*Math.PI*2; m.userData.baseS=s;
+    m.visible=false;
+    human.add(m); lesions.push(m);
+  }
+  const looseChunks=[];
+  for(let i=0;i<22;i++){
+    const s=0.04+Math.random()*0.05;
+    const m=new THREE.Mesh(new THREE.IcosahedronGeometry(s,0),lesionMat);
+    m.userData.baseS=s; m.userData.phase=Math.random()*Math.PI*2;
+    m.position.set((Math.random()-0.5)*1.4,(Math.random()-0.5)*1.4,(Math.random()-0.5)*1.4);
+    m.visible=false;
+    scene.add(m); looseChunks.push(m);
+  }
+
+  function createTendrilGroup(getOriginFn) {
+    const group = new THREE.Group();
+    group.userData.getOrigin = getOriginFn;
+    
+    let parent = group;
+    for(let i=0;i<12;i++){
+      const s=0.018-i*0.001;
+      const m=new THREE.Mesh(new THREE.CylinderGeometry(s, s*0.7, 0.10, 6), lesionMat);
+      m.position.y=-0.05;
+      const w = new THREE.Group(); 
+      w.position.y=-0.10; 
+      w.add(m);
+      parent.add(w); 
+      parent=w;
+    }
+    group.visible=false;
+    scene.add(group);
+    return group;
+  }
+
+  const tendrils = [
+    createTendrilGroup(() => { const p=new THREE.Vector3(); armL.lower.getWorldPosition(p); return p; }),
+    createTendrilGroup(() => { const p=new THREE.Vector3(); armR.lower.getWorldPosition(p); return p; }),
+    createTendrilGroup(() => { const p=new THREE.Vector3(); legL.lower.getWorldPosition(p); return p; }),
+    createTendrilGroup(() => { const p=new THREE.Vector3(); legR.lower.getWorldPosition(p); return p; })
+  ];
+
+  const droolCount=28;
+  const droolGeo=new THREE.BufferGeometry();
+  const droolPos=new Float32Array(droolCount*3);
+  const droolSpd=new Float32Array(droolCount);
+  for(let i=0;i<droolCount;i++){
+    droolPos[i*3]=(Math.random()-0.5)*0.02;
+    droolPos[i*3+1]=-0.05-Math.random()*0.2;
+    droolPos[i*3+2]=0.12;
+    droolSpd[i]=0.02+Math.random()*0.06;
+  }
+  droolGeo.setAttribute('position',new THREE.BufferAttribute(droolPos,3));
+  const droolMat=new THREE.PointsMaterial({size:0.045,color:0x8a1a1a,transparent:true,opacity:0.85,depthWrite:false});
+  const drool=new THREE.Points(droolGeo,droolMat); human.add(drool);
+
+  human.position.set(0,4.2,0); human.rotation.y=0.5; scene.add(human);
+
+  const limbs=[
+    {root:armL.root,lower:armL.lower,phase:0.0,restZ:-1.10,restLowerX:0.30},
+    {root:armR.root,lower:armR.lower,phase:1.8,restZ: 1.10,restLowerX:0.30},
+    {root:legL.root,lower:legL.lower,phase:0.9,restZ: 0.18,restLowerX:0.10},
+    {root:legR.root,lower:legR.lower,phase:2.6,restZ:-0.18,restLowerX:0.10}
+  ];
+
+  const seaGeo=new THREE.PlaneGeometry(60,60,72,72); seaGeo.rotateX(-Math.PI/2);
+  const seaUniforms={uTime:{value:0},uBass:{value:0},uMid:{value:0},uCorruption:{value:0}};
+  const seaMat=new THREE.ShaderMaterial({
+    uniforms:seaUniforms,side:THREE.DoubleSide,transparent:true,
+    vertexShader:`
+      uniform float uTime; uniform float uBass; uniform float uCorruption;
+      varying float vHeight; varying vec3 vPos;
+      void main(){
+        vec3 p = position;
+        float turb = 1.0 + uCorruption*1.6;
+        float wave = sin(p.x*0.32+uTime*1.0)*0.5 + cos(p.z*0.26+uTime*0.8)*0.5
+                   + sin((p.x+p.z)*0.14+uTime*0.4)*0.4;
+        wave *= (0.5+uBass*1.8) * turb;
+        p.y += wave;
+        vHeight = wave; vPos = p;
+        gl_Position = projectionMatrix*modelViewMatrix*vec4(p,1.0);
+      }
+    `,
+    fragmentShader:`
+      uniform float uTime; uniform float uMid; uniform float uCorruption;
+      varying float vHeight; varying vec3 vPos;
+      vec3 hsl2rgb(vec3 c){
+        vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0,0.0,1.0);
+        return c.z + c.y*(rgb-0.5)*(1.0-abs(2.0*c.z-1.0));
+      }
+      void main(){
+        float hue = fract(uTime*0.035 + vPos.x*0.015 + vPos.z*0.015 + vHeight*0.06 + 0.95);
+        vec3 psychedelic = hsl2rgb(vec3(hue,0.8,0.28+0.22*vHeight+uMid*0.2));
+        vec3 murky = mix(vec3(0.03,0.04,0.035), vec3(0.16,0.02,0.03), 0.5+0.5*uCorruption);
+        murky = mix(vec3(0.03,0.04,0.035), murky, vHeight);
+        vec3 col = mix(murky, psychedelic, clamp(uCorruption,0.0,1.0));
+        float splotch = step(0.85, fract(sin(vPos.x*13.0+vPos.z*7.0+uTime*0.2)*43758.5));
+        col *= 1.0 - splotch * uCorruption * 0.6;
+        gl_FragColor = vec4(col, 0.92);
+      }
+    `
+  });
+  const sea=new THREE.Mesh(seaGeo,seaMat); sea.position.y=6; scene.add(sea);
+  const sea2=new THREE.Mesh(seaGeo.clone(),seaMat); sea2.position.y=-20; sea2.rotation.y=Math.PI/5; scene.add(sea2);
+  const sea3=new THREE.Mesh(seaGeo.clone(),seaMat); sea3.position.y=-46; sea3.rotation.y=Math.PI/2.3; scene.add(sea3);
+
+  const PCOUNT=520;
+  const pGeo=new THREE.BufferGeometry();
+  const positions=new Float32Array(PCOUNT*3);
+  const speeds=new Float32Array(PCOUNT);
+  for(let i=0;i<PCOUNT;i++){
+    positions[i*3]=(Math.random()-0.5)*18;
+    positions[i*3+1]=(Math.random()-0.5)*28;
+    positions[i*3+2]=(Math.random()-0.5)*18;
+    speeds[i]=0.12+Math.random()*0.4;
+  }
+  pGeo.setAttribute('position',new THREE.BufferAttribute(positions,3));
+  const pMat=new THREE.PointsMaterial({size:0.045,color:0x6a5468,transparent:true,opacity:0.4,depthWrite:false});
+  scene.add(new THREE.Points(pGeo,pMat));
+
+  let audioCtx=null, analyser=null, freqData=null, sourceNode=null, audioEl=null;
+  const statusEl=document.getElementById('status');
+  const corruptMeterEl=document.getElementById('corruptMeter');
+  const fpsReadout=document.getElementById('fpsReadout');
+
+  let playbackActive=false;
+  let trackDuration=2013; // 33:33 を既定値に（音声ファイル読込時にloadedmetadataで実際の長さへ自動的に上書きされる）
+  const TARGET_END_CORRUPTION=0.95;
+  const CORRUPT_CAP_VIS=1.0;
+  let baseRate=TARGET_END_CORRUPTION/trackDuration;
+  function recomputeBaseRate(){ baseRate=TARGET_END_CORRUPTION/Math.max(trackDuration,20); }
+
+  function ensureAudioCtx(){
+    if(!audioCtx){
+      audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      analyser=audioCtx.createAnalyser();
+      analyser.fftSize=512;
+      analyser.smoothingTimeConstant=0.55;
+      freqData=new Uint8Array(analyser.frequencyBinCount);
+    }
+  }
+
+  document.getElementById('fileInput').addEventListener('change', e=>{
+    const file=e.target.files[0]; if(!file) return;
+    ensureAudioCtx();
+    if(audioEl){ audioEl.pause(); }
+    playbackActive=false;
+    
+    audioEl=new Audio();
+    audioEl.src = URL.createObjectURL(file);
+    audioEl.crossOrigin="anonymous";
+    
+    audioEl.addEventListener('loadedmetadata', ()=>{
+      if(isFinite(audioEl.duration)&&audioEl.duration>10){trackDuration=audioEl.duration;recomputeBaseRate();}
+    });
+    audioEl.addEventListener('play',  ()=>{playbackActive=true; statusEl.textContent="崩壊が進行中: "+file.name;});
+    audioEl.addEventListener('pause', ()=>{playbackActive=false; statusEl.textContent="一時停止中（崩壊も停止）";});
+    audioEl.addEventListener('ended', ()=>{playbackActive=false; statusEl.textContent="曲が終了しました";});
+    
+    if(sourceNode) sourceNode.disconnect();
+    sourceNode=audioCtx.createMediaElementSource(audioEl);
+    sourceNode.connect(analyser); analyser.connect(audioCtx.destination);
+    
+    audioCtx.resume().then(() => {
+      audioEl.play();
+    });
+  });
+
+  document.getElementById('micBtn').addEventListener('click', async ()=>{
+    try{
+      ensureAudioCtx();
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      if(sourceNode) sourceNode.disconnect();
+      sourceNode=audioCtx.createMediaStreamSource(stream);
+      sourceNode.connect(analyser); 
+      audioCtx.resume();
+      playbackActive=true; trackDuration=480; recomputeBaseRate();
+      statusEl.textContent="マイク入力で進行中...";
+    }catch(err){ statusEl.textContent="マイクにアクセスできませんでした"; }
+  });
+
+  document.getElementById('playBtn').addEventListener('click', ()=>{
+    if(audioEl){ if(audioEl.paused){ audioEl.play(); } else { audioEl.pause(); } }
+    if(audioCtx) audioCtx.resume();
+  });
+
+  const recBtn=document.getElementById('recBtn'); const recInfo=document.getElementById('recInfo');
+  let mediaRec=null, recChunks=[], recStartT=0, recTimer=null;
+  function setRecInfo(html){ recInfo.innerHTML=html; recInfo.style.display=html?'block':'none'; }
+  
+  recBtn.addEventListener('click', ()=>{
+    if(mediaRec && mediaRec.state==='recording'){ mediaRec.stop(); return; }
+    try{
+      const stream=renderer.domElement.captureStream(60);
+      if(audioCtx){
+        try {
+          const dest=audioCtx.createMediaStreamDestination();
+          analyser.connect(dest);
+          dest.stream.getAudioTracks().forEach(tr=>stream.addTrack(tr));
+        } catch(_){}
+      }
+      const mime = (window.MediaRecorder && MediaRecorder.isTypeSupported('video/webm;codecs=vp9'))
+        ? 'video/webm;codecs=vp9'
+        : (MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm');
+      mediaRec=new MediaRecorder(stream,{mimeType:mime, videoBitsPerSecond:12000000});
+      recChunks=[];
+      mediaRec.ondataavailable=e=>{ if(e.data&&e.data.size) recChunks.push(e.data); };
+      mediaRec.onstop=()=>{
+        const blob=new Blob(recChunks,{type:mime});
+        const url=URL.createObjectURL(blob);
+        const sizeMB=(blob.size/1024/1024).toFixed(2);
+        setRecInfo(`REC ■ ${sizeMB} MB · <a href="${url}" download="sinking_${Date.now()}.webm">録画をダウンロード</a>`);
+        recBtn.textContent='● 録画開始'; recBtn.classList.remove('recording');
+        if(recTimer){ clearInterval(recTimer); recTimer=null; }
+      };
+      mediaRec.start(250);
+      recStartT=performance.now();
+      recBtn.textContent='■ 録画停止'; recBtn.classList.add('recording');
+      setRecInfo('REC ● 録画中 · 0:00');
+      recTimer=setInterval(()=>{
+        const s=Math.floor((performance.now()-recStartT)/1000);
+        setRecInfo(`REC ● 録画中 · ${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`);
+      },500);
+    }catch(err){ setRecInfo(`録画を開始できません: ${err.message||err}`); }
+  });
+
+  const sinkSpeedSlider    = document.getElementById('sinkSpeed');
+  const corruptSpeedSlider = document.getElementById('corruptSpeed');
+
+  function smoothstep(edge0, edge1, x){
+    const tt = Math.min(1, Math.max(0, (x-edge0)/(edge1-edge0)));
+    return tt*tt*(3-2*tt);
+  }
+
+  function getAudioLevels(){
+    if(analyser){
+      analyser.getByteFrequencyData(freqData);
+      const n=freqData.length;
+      let bass=0,mid=0,treble=0;
+      const bassEnd=Math.floor(n*0.12), midEnd=Math.floor(n*0.5);
+      for(let i=0;i<bassEnd;i++) bass+=freqData[i];
+      for(let i=bassEnd;i<midEnd;i++) mid+=freqData[i];
+      for(let i=midEnd;i<n;i++) treble+=freqData[i];
+      bass/=(bassEnd*255); mid/=((midEnd-bassEnd)*255); treble/=((n-midEnd)*255);
+      return {bass,mid,treble};
+    }
+    return {bass:0,mid:0,treble:0};
+  }
+
+  function updateRetroUniforms(mat, t, a){
+    if(mat.userData.shader){
+      mat.userData.shader.uniforms.uTimeU.value=t;
+      mat.userData.shader.uniforms.uOrganicAmp.value=a;
+    }
+  }
+
+  const clock=new THREE.Clock(); clock.start();
+  let corruptionRaw=0, runningMax=0.15;
+  let fpsFrames=0, fpsT=performance.now();
+
+  // --- 長尺・高ラウドネス(-8.6LUFS級)トラック向けのダイナミクス抽出 ---
+  // 音圧の高い(ダイナミックレンジの狭い)マスターだと生の音量はほぼ張り付いたままになるため、
+  // 「速い追従(fastEnv)」と「遅い追従(slowEnv)」の差分からアタック(オンセット)を検出し、
+  // それを一時的な"サージ"として画面に反映することで、静かなー派手なの単調な変化ではなく
+  // 曲の展開に応じた多様な"ヒット感"を出す。
+  let fastEnv=0, slowEnv=0, surgeEnergy=0;
+  // 曲全体(約33:33=2013秒を想定)にわたる緩急の波。進行度(0-1)に対して複数の周期を重ねることで、
+  // 崩壊度が一本調子に増えるだけでなく、途中で盛り上がったり落ち着いたりする"うねり"を作る。
+  let hueAccum=0;
+
+  function getProgress(){
+    if(audioEl && isFinite(audioEl.duration) && audioEl.duration>0){
+      return Math.min(1, audioEl.currentTime/audioEl.duration);
+    }
+    return Math.min(1, corruptionRaw/TARGET_END_CORRUPTION);
+  }
+
+  function animate(){
+    requestAnimationFrame(animate);
+    const dtRaw = Math.min(clock.getDelta(), 0.05);
+    const t = clock.elapsedTime;
+    const {bass, mid, treble} = getAudioLevels();
+    const audioEnergy=(bass+mid+treble)/3;
+
+    runningMax=Math.max(audioEnergy, runningMax*0.9995);
+    const normEnergy=audioEnergy/Math.max(runningMax,0.05);
+
+    // -8.6LUFS級の音圧が高いトラックは生レベルがずっと高止まりしやすいので、
+    // 速い追従と遅い追従の差でアタック（オンセット）を検出し、単調にならないヒット感を作る
+    const dt = (playbackActive || audioCtx) ? dtRaw : 0;
+    fastEnv += (audioEnergy - fastEnv) * Math.min(1, dt*9.0);
+    slowEnv += (audioEnergy - slowEnv) * Math.min(1, dt*0.55);
+    const onset = Math.max(0, fastEnv - slowEnv) * 3.4;
+    surgeEnergy = Math.max(onset, surgeEnergy - dt*1.1);
+
+    const progress = getProgress();
+    // 曲全体(想定33:33)を通じて緩急のうねりを作る、周期の異なる2つの波を合成
+    const wave1 = Math.sin(progress*Math.PI*2*2.5 + 0.6)*0.5+0.5;
+    const wave2 = Math.sin(progress*Math.PI*2*6.0 + 2.1)*0.5+0.5;
+    const variety = wave1*0.6 + wave2*0.4;
+
+    const rateMul = corruptSpeedSlider.value/50;
+    corruptionRaw += dt * (baseRate*rateMul*0.85 + normEnergy*0.004 + onset*0.006);
+    const corr = Math.min(corruptionRaw, 1.2);
+    const corrVis = Math.min(corruptionRaw, CORRUPT_CAP_VIS);
+    corruptMeterEl.textContent = "浸食度: " + Math.round(corrVis*100) + "%" + (corruptionRaw>CORRUPT_CAP_VIS ? " ++" : "");
+
+    hueAccum += dt * 0.04 * (0.55 + variety*0.9);
+
+    const fogA=new THREE.Color(0x0a0806), fogB=new THREE.Color(0x5a0a14);
+    scene.fog.color.copy(fogA).lerp(fogB, Math.min(corr,1));
+    scene.fog.density=0.05+Math.min(corr,1)*0.022+variety*Math.min(corr,1)*0.012;
+
+    key.color.setHSL(THREE.MathUtils.lerp(0.08,hueAccum%1,Math.min(corr,1)), THREE.MathUtils.lerp(0.15,0.8,Math.min(corr,1)), 0.55);
+    fill.color.setHSL(THREE.MathUtils.lerp(0.02,(hueAccum+0.5)%1,Math.min(corr,1)), THREE.MathUtils.lerp(0.25,0.85,Math.min(corr,1)), 0.4);
+    key.intensity=1.1+bass*1.6+Math.min(corr,1)*1.2+surgeEnergy*0.8;
+    fill.intensity=0.9+mid*1.2;
+    underLight.intensity=0.6+corr*1.8+bass*0.6+surgeEnergy*0.5;
+
+    seaUniforms.uTime.value=t; seaUniforms.uBass.value=bass; seaUniforms.uMid.value=mid;
+    seaUniforms.uCorruption.value=Math.min(corr,1);
+
+    const skinHue=(hueAccum*0.75)%1;
+    const cB=new THREE.Color().setHSL(skinHue,0.75,0.5);
+    skinMat.color.copy(skinBase).lerp(cB, Math.min(corr,1));
+    skinMat.emissive.setHSL((skinHue+0.02)%1,0.65,0.22);
+    skinMat.emissiveIntensity=0.1+Math.min(corr,1)*0.5+mid*0.25+surgeEnergy*0.3;
+    updateRetroUniforms(skinMat,t,Math.min(corr,1.2)*0.045+bass*0.01);
+    updateRetroUniforms(lesionMat,t,Math.min(corr,1.2)*0.06+bass*0.02);
+
+    const sinkSpeed=sinkSpeedSlider.value/1000;
+    human.position.y -= dt * (sinkSpeed*4.5) * (1 + bass*1.1);
+    human.rotation.y += dt * (0.05 + treble*0.12 + Math.min(corr,1)*0.12);
+    human.rotation.z = Math.sin(t*0.25)*0.04*(1+Math.min(corr,1));
+    human.rotation.x = Math.sin(t*0.18+1.0)*0.05*(1+Math.min(corr,1));
+
+    limbs.forEach(l=>{
+      const sway = Math.sin(t*0.42 + l.phase) * (0.06 + Math.min(corr,1)*(0.20+variety*0.12) + treble*0.08 + surgeEnergy*0.1);
+      l.root.rotation.x = sway;
+      l.root.rotation.z = l.restZ + Math.sin(t*0.28+l.phase*1.3)*0.025*(1+Math.min(corr,1));
+      l.lower.rotation.x = l.restLowerX + Math.sin(t*0.55+l.phase+1.0)*(0.05+Math.min(corr,1)*0.18);
+    });
+
+    const lesionEmerge = smoothstep(0.12, 0.55, corr);
+    lesions.forEach(m=>{
+      const ph = m.userData.phase + t*0.7;
+      m.scale.setScalar(lesionEmerge * (1.0 + Math.sin(ph)*0.18*(0.3+corr)));
+      m.visible = lesionEmerge > 0.01;
+    });
+
+    const chunkEmerge = smoothstep(0.05, 0.45, corr);
+    looseChunks.forEach(m=>{
+      const ph = m.userData.phase + t*0.5;
+      m.position.y += 0.015 * Math.sin(ph) * (1 + corr*1.5) * chunkEmerge;
+      m.position.x += 0.012 * Math.cos(ph*0.7) * chunkEmerge;
+      m.rotation.x += 0.01*(1+corr);
+      m.rotation.y += 0.013*(1+corr);
+      m.scale.setScalar(chunkEmerge * (1 + corr*0.4 + Math.sin(ph)*0.05));
+      m.visible = chunkEmerge > 0.01;
+    });
+
+    const tendrilEmerge = smoothstep(0.20, 0.75, corr);
+    tendrils.forEach(group=>{
+      const o = group.userData.getOrigin();
+      group.position.copy(o);
+      group.scale.setScalar(tendrilEmerge);
+      group.visible = tendrilEmerge > 0.01;
+      let node=group, depth=0;
+      while(node && depth<14){
+        if(node.children[0]){
+          node.children[0].rotation.z = Math.sin(t*0.9 + depth*0.6 + o.x) * (0.25 + Math.min(corr,1)*0.5);
+          node = node.children[0];
+        } else { break; }
+        depth++;
+      }
+    });
+
+    const eyePulse = 0.85 + Math.sin(t*1.7)*0.15;
+    pupilL.scale.setScalar(eyePulse); pupilR.scale.setScalar(eyePulse);
+    pupilL.material.emissiveIntensity = 1.0 + bass*1.2 + Math.min(corr,1)*0.8;
+    pupilR.material.emissiveIntensity = 1.0 + bass*1.2 + Math.min(corr,1)*0.8;
+    const eyeDartX = Math.sin(t*0.4)*0.004;
+    const eyeDartY = Math.cos(t*0.31)*0.003;
+    pupilL.position.set(eyeDartX, eyeDartY, 0.018);
+    pupilR.position.set(eyeDartX, eyeDartY, 0.018);
+
+    const mouthOpen = 0.5 + Math.abs(Math.sin(t*0.6))*0.5 + bass*1.2 + Math.min(corr,1)*0.8;
+    mouthDeep.scale.set(1, Math.min(1.6, mouthOpen), 1);
+
+    const dPos = drool.geometry.attributes.position;
+    for(let i=0;i<droolCount;i++){
+      let yy = dPos.array[i*3+1];
+      yy -= droolSpd[i]*0.02 * (1 + bass*1.5);
+      if(yy < -1.2){ yy = -0.05; dPos.array[i*3] = (Math.random()-0.5)*0.02; }
+      dPos.array[i*3+1] = yy;
+    }
+    dPos.needsUpdate = true;
+    droolMat.opacity = 0.4 + bass*0.5 + Math.min(corr,1)*0.4;
+
+    const posAttr = pGeo.attributes.position;
+    for(let i=0;i<PCOUNT;i++){
+      let y = posAttr.array[i*3+1];
+      y += 0.016*speeds[i]*(1+treble*1.0);
+      if(y>14) y=-14;
+      posAttr.array[i*3+1]=y;
+    }
+    posAttr.needsUpdate = true;
+    pMat.color.setHSL(THREE.MathUtils.lerp(0.06,hueAccum%1,Math.min(corr,1)), THREE.MathUtils.lerp(0.2,0.75,Math.min(corr,1)), 0.55);
+    pMat.opacity = 0.3 + Math.min(corr,1)*0.35 + treble*0.15 + surgeEnergy*0.15;
+
+    const targetY = human.position.y + 0.8;
+    camera.position.y += (targetY-camera.position.y)*0.015;
+    camera.position.x += (mouseX*1.2 - camera.position.x*0.05)*0.01;
+    camera.position.z = 7.5 + Math.sin(t*0.04)*(1.0+variety*0.6);
+    camera.fov = 50 + surgeEnergy*4.0;
+    camera.updateProjectionMatrix();
+    camera.lookAt(human.position.x, human.position.y+0.15, human.position.z);
+
+    postUniforms.uTime.value = t;
+    postUniforms.uCorruption.value = Math.min(corr, 1.2);
+    postUniforms.uBass.value = bass;
+    postUniforms.uSurge.value = Math.min(surgeEnergy, 1.0);
+
+    renderer.setRenderTarget(renderTarget);
+    renderer.clear();
+    renderer.render(scene, camera);
+    renderer.setRenderTarget(null);
+    renderer.render(postScene, postCamera);
+
+    fpsFrames++;
+    const now=performance.now();
+    if(now-fpsT>=500){
+      fpsReadout.textContent = (Math.round(fpsFrames*1000/(now-fpsT))) + ' fps';
+      fpsT=now; fpsFrames=0;
+    }
+  }
+
+  applyResolution();
+  animate();
+})();
+</script>
+</body>
+</html>
