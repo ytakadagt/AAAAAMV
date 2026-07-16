@@ -215,7 +215,7 @@
   stage.appendChild(renderer.domElement);
 
   // Resolution and rendering targets for ping-pong feedback (trails) — PS2-style low res
-  let RES_DIVISOR = 2.0;
+  let RES_DIVISOR = 1.0;
   let rtW = Math.max(64, Math.floor(window.innerWidth / RES_DIVISOR));
   let rtH = Math.max(64, Math.floor(window.innerHeight / RES_DIVISOR));
 
@@ -1408,7 +1408,7 @@
     if (fbxModel) {
       const sinkSpeed = sinkSpeedSlider.value / 1000;
       fbxModel.position.y -= dt * (sinkSpeed * 4.5) * (1.0 + bass * 1.1);
-      fbxModel.rotation.y += dt * (0.015 + treble * 0.03);
+      fbxModel.rotation.z = Math.PI / 2;
 
       // Irreversible separation (parts drift far apart into deep space)
       const separation = progress * 1.4;
