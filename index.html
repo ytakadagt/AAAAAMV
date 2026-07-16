@@ -164,6 +164,13 @@
       </div>
     </div>
   </div>
+  
+  <!-- Seek Bar -->
+  <div class="ui-row" style="gap:8px;align-items:center;">
+    <span id="seekTime" style="font-family:'Share Tech Mono',monospace;font-size:11px;min-width:42px;">0:00</span>
+    <input type="range" id="seekBar" min="0" max="1000" value="0" style="flex:1;height:6px;cursor:pointer;">
+    <span id="seekDuration" style="font-family:'Share Tech Mono',monospace;font-size:11px;min-width:42px;text-align:right;">33:33</span>
+  </div>
 </div>
 
 <!-- Three.js and FBX Loader Libraries -->
@@ -189,6 +196,11 @@
   const corruptSpeedSlider = document.getElementById('corruptSpeed');
   const trailSlider = document.getElementById('trailAmount');
   
+  const seekBar = document.getElementById('seekBar');
+  const seekTimeEl = document.getElementById('seekTime');
+  const seekDurationEl = document.getElementById('seekDuration');
+  let isSeeking = false;
+  
   const lblSink = document.getElementById('lblSink');
   const lblCorr = document.getElementById('lblCorr');
   const lblTrail = document.getElementById('lblTrail');
@@ -197,6 +209,32 @@
   sinkSpeedSlider.addEventListener('input', () => lblSink.textContent = sinkSpeedSlider.value);
   corruptSpeedSlider.addEventListener('input', () => lblCorr.textContent = corruptSpeedSlider.value);
   trailSlider.addEventListener('input', () => lblTrail.textContent = trailSlider.value);
+
+  // Seek bar logic
+  seekBar.addEventListener('mousedown', () => { isSeeking = true; });
+  seekBar.addEventListener('touchstart', () => { isSeeking = true; });
+  seekBar.addEventListener('input', () => {
+    const ratio = seekBar.value / 1000;
+    const seekTo = ratio * trackDuration;
+    if (audioEl && isFinite(audioEl.duration)) {
+      audioEl.currentTime = seekTo;
+    }
+    playTime = seekTo;
+    const m = Math.floor(seekTo / 60);
+    const s = Math.floor(seekTo % 60);
+    seekTimeEl.textContent = `${m}:${String(s).padStart(2,'0')}`;
+  });
+  seekBar.addEventListener('mouseup', () => { isSeeking = false; });
+  seekBar.addEventListener('touchend', () => { isSeeking = false; });
+
+  function updateSeekBar(t) {
+    if (isSeeking) return;
+    const ratio = Math.min(1, t / Math.max(trackDuration, 1));
+    seekBar.value = Math.round(ratio * 1000);
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60);
+    seekTimeEl.textContent = `${m}:${String(s).padStart(2,'0')}`;
+  }
 
   // --- Rendering & Scene Configuration ---
   const stage = document.getElementById('stage');
@@ -1302,7 +1340,9 @@
     baseRate = 0.95 / Math.max(trackDuration, 20);
     const m = Math.floor(trackDuration / 60);
     const s = Math.floor(trackDuration % 60);
-    durationValEl.textContent = `${m}:${String(s).padStart(2,'0')}`;
+    const durStr = `${m}:${String(s).padStart(2,'0')}`;
+    durationValEl.textContent = durStr;
+    seekDurationEl.textContent = durStr;
   }
 
   // --- Auto Load 1st full.wav if present ---
@@ -1474,6 +1514,10 @@
     fastEnv = 0;
     slowEnv = 0;
     hueAccum = 0;
+    
+    // Reset seek bar
+    seekBar.value = 0;
+    seekTimeEl.textContent = '0:00';
     
     // Reset camera
     camera.position.set(0, 35.0, 8.5);
@@ -1882,14 +1926,14 @@
       }
       
       const underwaterTime = time - 2.5;
-      // Camera sinks slowly towards y = 0
-      const targetY = 6.0 - Math.min(underwaterTime * 0.35, 6.0) + Math.sin(underwaterTime * 0.2) * 0.3;
-      camera.position.y += (targetY - camera.position.y) * 0.05;
-      camera.position.x += (mouseX * 1.5 - camera.position.x) * 0.02;
+      // Camera stays mostly fixed, very gentle drift
+      const targetY = 6.0 - Math.min(underwaterTime * 0.35, 6.0);
+      camera.position.y += (targetY - camera.position.y) * 0.03;
+      camera.position.x += (mouseX * 0.3 - camera.position.x) * 0.005;
       
-      // Pull camera back from 0.1 to 7.5 to pan out and face the model
-      const targetZ = 7.5 + Math.sin(underwaterTime * 0.05) * 1.0;
-      camera.position.z += (targetZ - camera.position.z) * 0.05;
+      // Camera Z stays nearly fixed
+      const targetZ = 7.5;
+      camera.position.z += (targetZ - camera.position.z) * 0.03;
       
       // Look directly at the model center (Torso/Hips) at all times
       camera.lookAt(targetLookAt);
@@ -1898,15 +1942,9 @@
       scene.fog.density = 0.12 + Math.min(corr, 1.0) * 0.02 + variety * Math.min(corr, 1.0) * 0.015;
     }
 
-    // Camera field of view expands on transients
-    camera.fov = 50 + surgeEnergy * 6.5 + onsetStrength * 3.0;
+    // Camera field of view barely changes
+    camera.fov = 50 + surgeEnergy * 1.5;
     camera.updateProjectionMatrix();
-    
-    // Camera shake on strong onsets
-    if (onsetStrength > 0.2) {
-      camera.position.x += (Math.random() - 0.5) * onsetStrength * 0.15;
-      camera.position.y += (Math.random() - 0.5) * onsetStrength * 0.1;
-    }
 
     // Lighting updates
     key.color.setHSL(THREE.MathUtils.lerp(0.58, hueAccum % 1, Math.min(corr, 1)), THREE.MathUtils.lerp(0.15, 0.8, Math.min(corr,1)), 0.55);
@@ -2359,6 +2397,7 @@
     const m = Math.floor(t / 60);
     const s = Math.floor(t % 60);
     timeValEl.textContent = `${m}:${String(s).padStart(2,'0')}`;
+    updateSeekBar(t);
     
     // Perform feedback rendering ping-pong swap
     renderer.setRenderTarget(sceneRT);
