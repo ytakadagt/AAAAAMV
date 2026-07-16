@@ -201,7 +201,7 @@
   // --- Rendering & Scene Configuration ---
   const stage = document.getElementById('stage');
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x0f0e0d, 0.035);
+  scene.fog = new THREE.FogExp2(0x0f0e0d, 0.06);
 
   const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
   camera.position.set(0, 35.0, 8.5);
@@ -421,10 +421,10 @@
   // --- PS2 Low-Poly Custom Shader Modifier ---
   function addRetroBody(material) {
     material.onBeforeCompile = (shader) => {
-      shader.uniforms.uSnap = { value: 140.0 };
+      shader.uniforms.uSnap = { value: 1000.0 };
       shader.uniforms.uTimeU = { value: 0.0 };
       shader.uniforms.uOrganicAmp = { value: 0.0 };
-      shader.uniforms.uMutation = { value: 0.0 }; // Irreversible mutation factor (0 to 1)
+      shader.uniforms.uMutation = { value: 0.0 };
       
       shader.vertexShader = 'uniform float uSnap;\nuniform float uTimeU;\nuniform float uOrganicAmp;\nuniform float uMutation;\n' + shader.vertexShader;
       
@@ -433,12 +433,10 @@
         `
         #include <begin_vertex>
         { 
-          // Irreversibly grow jagged polygonal spikes on vertices (theme: altered perception/body rot)
-          float freq = 14.0 + uMutation * 18.0;
+          float freq = 14.0 + uMutation * 12.0;
           float spike = sin(position.x * freq) * sin(position.y * freq) * sin(position.z * freq);
-          float sharpSpike = sign(spike) * pow(abs(spike), 0.4) * uMutation * 0.28;
+          float sharpSpike = sign(spike) * pow(abs(spike), 0.4) * uMutation * 0.15;
           
-          // Organic twitching
           float def = sin(position.x*7.0+uTimeU*1.4)*sin(position.y*6.0-uTimeU*1.0)*sin(position.z*8.0+uTimeU*0.8) * uOrganicAmp;
           
           transformed += normal * (def + sharpSpike); 
@@ -450,7 +448,6 @@
         `
         #include <project_vertex>
         { 
-          // Coordinate rounding for PS1/PS2 vertex-jitter wobbling
           vec4 snapped = gl_Position;
           snapped.xyz /= snapped.w;
           snapped.xy = floor(snapped.xy * uSnap) / uSnap;
@@ -680,26 +677,45 @@
     
     fbx.traverse(child => {
       if (child.isMesh) {
-        const name = child.name.toLowerCase();
-        const matName = child.material ? (Array.isArray(child.material) ? child.material[0].name.toLowerCase() : child.material.name.toLowerCase()) : '';
-        
-        let tex = bodyColorTex;
-        // Basic filter: assign base color texture (face/head) or body texture based on name matches
-        if (name.includes('head') || name.includes('face') || name.includes('hair') || name.includes('eye') ||
-            matName.includes('head') || matName.includes('face') || matName.includes('hair') || matName.includes('eye')) {
-          tex = baseColorTex;
+        // Keep original texture if the FBX already has one with a map
+        const origMat = child.material;
+        let hasOrigTex = false;
+        if (origMat) {
+          const mats = Array.isArray(origMat) ? origMat : [origMat];
+          hasOrigTex = mats.some(m => m.map !== null && m.map !== undefined);
         }
-        
-        const mat = new THREE.MeshStandardMaterial({
-          map: tex,
-          roughness: 0.82,
-          metalness: 0.05,
-          flatShading: true,
-          emissive: 0x0c0608,
-          emissiveIntensity: 0.12
-        });
-        addRetroBody(mat);
-        child.material = mat;
+
+        if (hasOrigTex) {
+          // FBX has its own textures - keep them, just add retro shader
+          const mats = Array.isArray(origMat) ? origMat : [origMat];
+          mats.forEach(m => {
+            m.flatShading = true;
+            m.emissive = new THREE.Color(0x0c0608);
+            m.emissiveIntensity = 0.12;
+            addRetroBody(m);
+          });
+        } else {
+          // No textures - apply our external textures
+          const name = child.name.toLowerCase();
+          const matName = origMat ? (Array.isArray(origMat) ? origMat[0].name.toLowerCase() : origMat.name.toLowerCase()) : '';
+          
+          let tex = bodyColorTex;
+          if (name.includes('head') || name.includes('face') || name.includes('hair') || name.includes('eye') ||
+              matName.includes('head') || matName.includes('face') || matName.includes('hair') || matName.includes('eye')) {
+            tex = baseColorTex;
+          }
+          
+          const mat = new THREE.MeshStandardMaterial({
+            map: tex,
+            roughness: 0.82,
+            metalness: 0.05,
+            flatShading: true,
+            emissive: 0x0c0608,
+            emissiveIntensity: 0.12
+          });
+          addRetroBody(mat);
+          child.material = mat;
+        }
       }
     });
     
@@ -743,7 +759,7 @@
     return group;
   }
   
-  const MAX_EYES = 24;
+  const MAX_EYES = 12;
   const floatingEyes = [];
   for (let i = 0; i < MAX_EYES; i++) {
     floatingEyes.push(createFloatingEye());
@@ -857,8 +873,16 @@
   sea3.rotation.y = Math.PI / 2.3; 
   scene.add(sea3);
 
+  // Dark abyss floor - hides the bottom
+  const abyssGeo = new THREE.PlaneGeometry(200, 200);
+  abyssGeo.rotateX(-Math.PI / 2);
+  const abyssMat = new THREE.MeshBasicMaterial({ color: 0x010002, side: THREE.DoubleSide });
+  const abyss = new THREE.Mesh(abyssGeo, abyssMat);
+  abyss.position.y = -60;
+  scene.add(abyss);
+
   // --- Background floating organic dust ---
-  const PCOUNT = 600;
+  const PCOUNT = 300;
   const pGeo = new THREE.BufferGeometry();
   const positions = new Float32Array(PCOUNT * 3);
   const speeds = new Float32Array(PCOUNT);
@@ -874,7 +898,7 @@
   scene.add(bgParticles);
 
   // --- Dynamic Splash Particles (Bubble burst on Dive entry) ---
-  const BCOUNT = 400;
+  const BCOUNT = 200;
   const bubbleGeo = new THREE.BufferGeometry();
   const bubblePos = new Float32Array(BCOUNT * 3);
   const bubbleVels = new Float32Array(BCOUNT * 3);
@@ -953,7 +977,7 @@
 
   // --- Wireframe Geometric Polyhedra (spawning floating shapes) ---
   const geoShapes = [];
-  const MAX_GEOS = 20;
+  const MAX_GEOS = 8;
   for (let i = 0; i < MAX_GEOS; i++) {
     const geos = [
       new THREE.OctahedronGeometry(0.15 + Math.random() * 0.2, 0),
@@ -983,7 +1007,7 @@
   }
 
   // --- Vertical Light Beams (reactive columns) ---
-  const beamCount = 8;
+  const beamCount = 4;
   const beams = [];
   for (let i = 0; i < beamCount; i++) {
     const beamGeo = new THREE.CylinderGeometry(0.02, 0.02, 40, 4);
@@ -1001,7 +1025,7 @@
   }
 
   // --- Horizontal Light Sheets (translucent pulsing planes) ---
-  const sheetCount = 4;
+  const sheetCount = 2;
   const sheets = [];
   for (let i = 0; i < sheetCount; i++) {
     const sheetGeo = new THREE.PlaneGeometry(30, 30);
@@ -1022,7 +1046,7 @@
   }
 
   // --- Spiral Particle Vortex ---
-  const vortexCount = 300;
+  const vortexCount = 150;
   const vortexGeo = new THREE.BufferGeometry();
   const vortexPos = new Float32Array(vortexCount * 3);
   const vortexVel = new Float32Array(vortexCount * 3);
@@ -1511,6 +1535,9 @@
       mat.userData.shader.uniforms.uTimeU.value = t;
       mat.userData.shader.uniforms.uOrganicAmp.value = a;
       mat.userData.shader.uniforms.uMutation.value = mut;
+      // Dynamic snap: smooth at first, gradually becomes low-poly
+      const snap = THREE.MathUtils.lerp(1000.0, 80.0, Math.pow(mut, 2.5));
+      mat.userData.shader.uniforms.uSnap.value = snap;
     }
   }
 
@@ -1599,7 +1626,7 @@
       camera.lookAt(targetLookAt);
 
       scene.fog.color.copy(fogA).lerp(fogB, Math.min(underwaterTime * 0.4, 1.0));
-      scene.fog.density = 0.05 + Math.min(corr, 1.0) * 0.02 + variety * Math.min(corr, 1.0) * 0.015;
+      scene.fog.density = 0.08 + Math.min(corr, 1.0) * 0.02 + variety * Math.min(corr, 1.0) * 0.015;
     }
 
     // Camera field of view expands on transients
