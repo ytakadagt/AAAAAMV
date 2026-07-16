@@ -144,6 +144,7 @@
     <!-- Real-time specific controls -->
     <div class="ui-group" id="realtimeControls">
       <button id="playBtn" style="min-width:90px;font-weight:600;">再生 / 一時停止</button>
+      <button id="resetBtn">やり直し</button>
       <button id="recBtn">● 録画開始 (WebM)</button>
     </div>
 
@@ -182,6 +183,7 @@
   
   const playBtn = document.getElementById('playBtn');
   const recBtn = document.getElementById('recBtn');
+  const resetBtn = document.getElementById('resetBtn');
   
   const sinkSpeedSlider = document.getElementById('sinkSpeed');
   const corruptSpeedSlider = document.getElementById('corruptSpeed');
@@ -906,6 +908,133 @@
     posAttr.needsUpdate = true;
   }
 
+  // --- Shockwave Rings (expanding rings on beat hits) ---
+  const ringCount = 6;
+  const rings = [];
+  for (let i = 0; i < ringCount; i++) {
+    const ringGeo = new THREE.RingGeometry(0.1, 0.15, 32);
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0xff2255, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.visible = false;
+    scene.add(ring);
+    rings.push({ mesh: ring, scale: 0, active: false, seed: Math.random() * 100 });
+  }
+  let nextRingIdx = 0;
+  let lastRingTime = 0;
+
+  function triggerRing(t) {
+    const r = rings[nextRingIdx];
+    r.mesh.visible = true;
+    r.mesh.position.set(
+      (Math.random() - 0.5) * 3,
+      3.0 + (Math.random() - 0.5) * 2,
+      (Math.random() - 0.5) * 3
+    );
+    r.mesh.lookAt(camera.position);
+    r.scale = 0.3;
+    r.active = true;
+    r.mesh.material.color.setHSL(Math.random(), 1, 0.5);
+    nextRingIdx = (nextRingIdx + 1) % ringCount;
+    lastRingTime = t;
+  }
+
+  // --- Wireframe Geometric Polyhedra (spawning floating shapes) ---
+  const geoShapes = [];
+  const MAX_GEOS = 20;
+  for (let i = 0; i < MAX_GEOS; i++) {
+    const geos = [
+      new THREE.OctahedronGeometry(0.15 + Math.random() * 0.2, 0),
+      new THREE.IcosahedronGeometry(0.12 + Math.random() * 0.18, 0),
+      new THREE.TetrahedronGeometry(0.14 + Math.random() * 0.2, 0),
+      new THREE.DodecahedronGeometry(0.1 + Math.random() * 0.15, 0),
+    ];
+    const geo = geos[Math.floor(Math.random() * geos.length)];
+    const mat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color().setHSL(Math.random(), 0.9, 0.5),
+      wireframe: true,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.visible = false;
+    scene.add(mesh);
+    geoShapes.push({
+      mesh, mat,
+      seed: Math.random() * 200,
+      speed: 0.2 + Math.random() * 0.6,
+      orbitR: 2 + Math.random() * 4,
+      phase: Math.random() * Math.PI * 2,
+      spawnProgress: 0
+    });
+  }
+
+  // --- Vertical Light Beams (reactive columns) ---
+  const beamCount = 8;
+  const beams = [];
+  for (let i = 0; i < beamCount; i++) {
+    const beamGeo = new THREE.CylinderGeometry(0.02, 0.02, 40, 4);
+    const beamMat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color().setHSL(Math.random(), 0.8, 0.4),
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending
+    });
+    const beam = new THREE.Mesh(beamGeo, beamMat);
+    beam.position.set((Math.random() - 0.5) * 12, 0, (Math.random() - 0.5) * 12);
+    beam.visible = false;
+    scene.add(beam);
+    beams.push({ mesh: beam, mat: beamMat, seed: Math.random() * 100 });
+  }
+
+  // --- Horizontal Light Sheets (translucent pulsing planes) ---
+  const sheetCount = 4;
+  const sheets = [];
+  for (let i = 0; i < sheetCount; i++) {
+    const sheetGeo = new THREE.PlaneGeometry(30, 30);
+    const sheetMat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color().setHSL(Math.random(), 0.7, 0.3),
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const sheet = new THREE.Mesh(sheetGeo, sheetMat);
+    sheet.rotation.x = -Math.PI / 2;
+    sheet.position.y = 3.0 + i * 3;
+    sheet.visible = false;
+    scene.add(sheet);
+    sheets.push({ mesh: sheet, mat: sheetMat, baseY: 3.0 + i * 3, seed: Math.random() * 100 });
+  }
+
+  // --- Spiral Particle Vortex ---
+  const vortexCount = 300;
+  const vortexGeo = new THREE.BufferGeometry();
+  const vortexPos = new Float32Array(vortexCount * 3);
+  const vortexVel = new Float32Array(vortexCount * 3);
+  for (let i = 0; i < vortexCount; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const r = 0.5 + Math.random() * 3;
+    vortexPos[i * 3] = Math.cos(angle) * r;
+    vortexPos[i * 3 + 1] = (Math.random() - 0.5) * 8;
+    vortexPos[i * 3 + 2] = Math.sin(angle) * r;
+    vortexVel[i * 3] = angle;
+    vortexVel[i * 3 + 1] = 0.5 + Math.random() * 2;
+    vortexVel[i * 3 + 2] = r;
+  }
+  vortexGeo.setAttribute('position', new THREE.BufferAttribute(vortexPos, 3));
+  const vortexMat = new THREE.PointsMaterial({
+    size: 0.06,
+    color: 0xff4488,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+  const vortexPoints = new THREE.Points(vortexGeo, vortexMat);
+  scene.add(vortexPoints);
+
   // --- Radical-2 FFT Implementation ---
   function bitReverse(x, bits) {
     let y = 0;
@@ -1050,12 +1179,12 @@
     durationValEl.textContent = `${m}:${String(s).padStart(2,'0')}`;
   }
 
-  // --- Auto Load aaaaa full.wav if present ---
+  // --- Auto Load 1st full.wav if present ---
   async function attemptAutoLoad() {
     ensureAudioCtx();
     try {
       statusEl.textContent = "自動：アルバム音声をサーバーから取得中...";
-      const res = await fetch('aaaaa full.wav');
+      const res = await fetch('1st full.wav');
       if (!res.ok) throw new Error('Auto load failed or file not present');
       const ab = await res.arrayBuffer();
       statusEl.textContent = "自動：アルバム音声をデコード中...";
@@ -1067,12 +1196,12 @@
       
       // Setup real-time audio player & routing for auto-loaded audio file
       audioEl = new Audio();
-      audioEl.src = 'aaaaa full.wav';
+      audioEl.src = '1st full.wav';
       audioEl.crossOrigin = "anonymous";
       
       audioEl.addEventListener('play', () => {
         playbackActive = true; 
-        statusEl.textContent = "自動再生中: aaaaa full.wav";
+        statusEl.textContent = "自動再生中: 1st full.wav";
       });
       audioEl.addEventListener('pause', () => {
         playbackActive = false; 
@@ -1088,7 +1217,7 @@
       sourceNode.connect(analyser); 
       analyser.connect(audioCtx.destination);
       
-      statusEl.textContent = "自動ロード成功：aaaaa full.wav 準備完了。";
+      statusEl.textContent = "自動ロード成功：1st full.wav 準備完了。";
     } catch (err) {
       statusEl.textContent = "音声ファイルを読み込んでください (自動読込スキップ)";
       console.log("[AutoLoad] skipped:", err.message);
@@ -1194,6 +1323,81 @@
         statusEl.textContent = "一時停止中";
       }
     }
+  });
+
+  // --- Reset Button ---
+  resetBtn.addEventListener('click', () => {
+    // Stop audio
+    if (audioEl) { audioEl.pause(); audioEl.currentTime = 0; }
+    playbackActive = false;
+    
+    // Reset all visual state
+    corruptionRaw = 0;
+    playTime = 0;
+    splashTriggered = false;
+    surgeEnergy = 0;
+    fastEnv = 0;
+    slowEnv = 0;
+    hueAccum = 0;
+    
+    // Reset camera
+    camera.position.set(0, 35.0, 8.5);
+    camera.fov = 50;
+    camera.updateProjectionMatrix();
+    scene.fog.color.set(0x0f0e0d);
+    scene.fog.density = 0.035;
+    
+    // Reset model position/rotation
+    if (fbxModel) {
+      fbxModel.position.set(0, 3.0, 0);
+      fbxModel.rotation.set(0, Math.PI, 0);
+      
+      // Reset bone positions
+      for (const key in bonesMap) {
+        const bone = bonesMap[key];
+        const defPos = defaultBonePositions[key];
+        if (bone && defPos) {
+          bone.position.copy(defPos);
+        }
+      }
+    }
+    
+    // Reset materials
+    skinMat.color.set(0xb58a8a);
+    skinMat.emissive.set(0x0c0608);
+    skinMat.emissiveIntensity = 0.12;
+    
+    // Reset post-processing
+    renderer.setRenderTarget(rt1); renderer.clear();
+    renderer.setRenderTarget(rt2); renderer.clear();
+    renderer.setRenderTarget(sceneRT); renderer.clear();
+    postUniforms.uTrailAmount.value = 0.85;
+    
+    // Reset bubble
+    bubbleMat.opacity = 0.0;
+    
+    // Reset lesions and chunks
+    lesions.forEach(m => m.visible = false);
+    looseChunks.forEach(m => m.visible = false);
+    mouthClosed.visible = false;
+    mouthDeep.visible = false;
+    tendrilConnectors.forEach(tc => { tc.line.material.opacity = 0; });
+    floatingEyes.forEach(eye => { eye.visible = false; });
+    
+    // Reset sea
+    seaUniforms.uCorruption.value = 0;
+    
+    // Reset new visual systems
+    rings.forEach(r => { r.active = false; r.mesh.visible = false; r.mesh.material.opacity = 0; });
+    geoShapes.forEach(g => { g.mesh.visible = false; g.mat.opacity = 0; g.spawnProgress = 0; });
+    beams.forEach(b => { b.mesh.visible = false; b.mat.opacity = 0; });
+    sheets.forEach(s => { s.mesh.visible = false; s.mat.opacity = 0; });
+    vortexMat.opacity = 0;
+    lastRingTime = 0;
+    
+    statusEl.textContent = "リセット完了";
+    clock.getDelta();
+    clock.start();
   });
 
   // --- WebM Local Real-time Recorder ---
@@ -1584,6 +1788,110 @@
       bPosAttr.needsUpdate = true;
       bubbleMat.opacity -= dt * 0.15; 
     }
+
+    // --- Shockwave Rings update ---
+    if (onset > 0.3 && time - lastRingTime > 0.3) {
+      triggerRing(time);
+    }
+    rings.forEach(r => {
+      if (r.active) {
+        r.scale += dt * 6.0 * (1.0 + bass * 2.0);
+        r.mesh.scale.setScalar(r.scale);
+        r.mesh.material.opacity = Math.max(0, 0.7 - r.scale * 0.08) * Math.min(corr + 0.1, 1.0);
+        if (r.scale > 12) { r.active = false; r.mesh.visible = false; }
+      }
+    });
+
+    // --- Wireframe Geometric Polyhedra update ---
+    const geoActiveCount = Math.floor(progress * MAX_GEOS * 0.7);
+    geoShapes.forEach((g, i) => {
+      if (i < geoActiveCount) {
+        g.mesh.visible = true;
+        const sp = Math.min(1.0, (progress * MAX_GEOS * 0.7 - i) * 0.3);
+        g.spawnProgress = Math.min(1.0, g.spawnProgress + dt * 0.5);
+        
+        const t2 = time * g.speed + g.seed;
+        const r = g.orbitR * (1.0 + bass * 0.3) * g.spawnProgress;
+        g.mesh.position.x = Math.sin(t2) * r;
+        g.mesh.position.y = 3.0 + Math.cos(t2 * 0.7) * r * 0.5 + Math.sin(t2 * 0.3) * 1.5;
+        g.mesh.position.z = Math.cos(t2) * r;
+        
+        g.mesh.rotation.x += dt * (0.3 + treble * 0.8);
+        g.mesh.rotation.y += dt * (0.2 + bass * 0.5);
+        g.mesh.rotation.z += dt * 0.15;
+        
+        g.mat.opacity = sp * 0.35 * (0.5 + bass * 0.5 + corr * 0.3);
+        g.mat.color.setHSL((hueAccum + i * 0.05) % 1, 0.85, 0.45 + bass * 0.15);
+        g.mesh.scale.setScalar(sp * (1.0 + corr * 0.3));
+      } else {
+        g.mesh.visible = false;
+      }
+    });
+
+    // --- Vertical Light Beams update ---
+    const beamActive = Math.floor(progress * beamCount);
+    beams.forEach((b, i) => {
+      if (i < beamActive) {
+        b.mesh.visible = true;
+        const phase = Math.sin(time * 0.5 + b.seed) * 0.5 + 0.5;
+        b.mat.opacity = phase * (0.15 + bass * 0.3 + surgeEnergy * 0.25) * Math.min(corr + 0.15, 1.0);
+        b.mat.color.setHSL((hueAccum * 0.7 + i * 0.12) % 1, 0.9, 0.5);
+        b.mesh.position.y = Math.sin(time * 0.3 + b.seed) * 3;
+        b.mesh.scale.x = 1.0 + bass * 3.0 + surgeEnergy * 2.0;
+        b.mesh.scale.z = b.mesh.scale.x;
+      } else {
+        b.mesh.visible = false;
+      }
+    });
+
+    // --- Horizontal Light Sheets update ---
+    const sheetActive = Math.floor(progress * sheetCount * 1.5);
+    sheets.forEach((s, i) => {
+      if (i < sheetActive) {
+        s.mesh.visible = true;
+        const wave = Math.sin(time * 0.2 + s.seed + i * 1.5) * 0.5 + 0.5;
+        s.mat.opacity = wave * 0.08 * (0.3 + mid * 0.7 + corr * 0.4);
+        s.mat.color.setHSL((hueAccum * 0.5 + i * 0.25) % 1, 0.75, 0.35);
+        s.mesh.position.y = s.baseY + Math.sin(time * 0.15 + s.seed) * 2;
+        s.mesh.rotation.z = time * 0.02 * (i % 2 === 0 ? 1 : -1);
+      } else {
+        s.mesh.visible = false;
+      }
+    });
+
+    // --- Spiral Vortex Particles update ---
+    const vortexOpacity = THREE.MathUtils.smoothstep(corr, 0.05, 0.4) * 0.6;
+    vortexMat.opacity = vortexOpacity * (0.3 + bass * 0.5 + surgeEnergy * 0.3);
+    vortexMat.color.setHSL((hueAccum * 1.3) % 1, 0.85, 0.5);
+    const vPos = vortexPoints.geometry.attributes.position;
+    for (let i = 0; i < vortexCount; i++) {
+      let angle = vPos.array[i * 3];
+      let vy = vPos.array[i * 3 + 1];
+      let vr = vPos.array[i * 3 + 2];
+      
+      angle += dt * (0.8 + bass * 1.5 + corr * 0.5);
+      vy += dt * vortexVel[i * 3 + 1] * (1.0 + bass);
+      vr += dt * 0.05 * Math.sin(time * 0.3 + i);
+      
+      if (vy > 10) { vy = -10; vr = 0.5 + Math.random() * 3; }
+      if (vr > 5) vr = 0.5;
+      
+      vPos.array[i * 3] = Math.cos(angle) * vr;
+      vPos.array[i * 3 + 1] = vy;
+      vPos.array[i * 3 + 2] = Math.sin(angle) * vr;
+    }
+    vPos.needsUpdate = true;
+
+    // --- Fog Color Cycling (psychedelic palette over time) ---
+    if (time > 2.5) {
+      const fogHue = (hueAccum * 0.3 + progress * 0.5) % 1;
+      const fogTarget = new THREE.Color().setHSL(fogHue, 0.6 + corr * 0.3, 0.04 + bass * 0.02);
+      scene.fog.color.lerp(fogTarget, 0.02);
+    }
+
+    // --- Post-Processing Shader Intensity Ramp ---
+    // Corruption-driven extra effects that grow over time
+    postUniforms.uCorruption.value = Math.min(corr, 1.2) * (1.0 + progress * 0.5);
 
     // Set post uniforms
     postUniforms.uTime.value = time;
