@@ -16,6 +16,7 @@ const MIME_TYPES = {
   '.mp3': 'audio/mpeg',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
+  '.fbx': 'application/octet-stream',
   '.ico': 'image/x-icon'
 };
 

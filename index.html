@@ -653,31 +653,65 @@
 
   // --- Load FBX Character ---
   const loader = new THREE.FBXLoader();
-  loader.load('Swimming.fbx', (fbx) => {
+  
+  function loadModel(url) {
+    return new Promise((resolve, reject) => {
+      console.log(`[Loader] Attempting to load: ${url}`);
+      loader.load(url, (fbx) => {
+        console.log(`[Loader] Loaded ${url}:`, fbx);
+        console.log(`[Loader] Children: ${fbx.children.length}`);
+        let meshCount = 0;
+        fbx.traverse(c => { if (c.isMesh) meshCount++; });
+        console.log(`[Loader] Meshes: ${meshCount}, Animations: ${fbx.animations ? fbx.animations.length : 0}`);
+        
+        const box = new THREE.Box3().setFromObject(fbx);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const height = size.y;
+        console.log(`[Loader] BBox size: ${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}`);
+        
+        if (height <= 0 || !isFinite(height)) {
+          console.warn(`[Loader] Invalid height ${height}, trying next model`);
+          reject(new Error('Invalid model bounds'));
+          return;
+        }
+        
+        resolve(fbx);
+      }, 
+      (xhr) => {
+        const pct = Math.round((xhr.loaded / xhr.total) * 100);
+        statusEl.textContent = `モデルをロード中: ${pct}% (${url})`;
+      },
+      (err) => {
+        console.error(`[Loader] Failed to load ${url}:`, err);
+        reject(err);
+      });
+    });
+  }
+
+  function setupModel(fbx) {
     fbxModel = fbx;
     
-    // Auto-scale to exactly 1.6 units tall
     const box = new THREE.Box3().setFromObject(fbx);
     const size = new THREE.Vector3();
     box.getSize(size);
     const height = size.y;
-    console.log("[Loader] Raw Character Height:", height);
+    
     if (height > 0) {
       const scaleTarget = 1.6 / height;
       fbx.scale.setScalar(scaleTarget);
+      console.log(`[Loader] Scaled to ${(scaleTarget * 100).toFixed(1)}% (target 1.6 units)`);
     }
     
     fbx.position.set(0, 3.0, 0);
-    fbx.rotation.y = Math.PI; // Face camera
+    fbx.rotation.y = Math.PI;
     scene.add(fbx);
     
-    // Extract skeleton joints and texture meshes
     mapBones(fbx);
     saveDefaultBonePositions();
     
     fbx.traverse(child => {
       if (child.isMesh) {
-        // Keep original texture if the FBX already has one with a map
         const origMat = child.material;
         let hasOrigTex = false;
         if (origMat) {
@@ -686,16 +720,15 @@
         }
 
         if (hasOrigTex) {
-          // FBX has its own textures - keep them, just add retro shader
           const mats = Array.isArray(origMat) ? origMat : [origMat];
           mats.forEach(m => {
             m.flatShading = true;
             m.emissive = new THREE.Color(0x0c0608);
             m.emissiveIntensity = 0.12;
+            m.side = THREE.DoubleSide;
             addRetroBody(m);
           });
         } else {
-          // No textures - apply our external textures
           const name = child.name.toLowerCase();
           const matName = origMat ? (Array.isArray(origMat) ? origMat[0].name.toLowerCase() : origMat.name.toLowerCase()) : '';
           
@@ -711,17 +744,21 @@
             metalness: 0.05,
             flatShading: true,
             emissive: 0x0c0608,
-            emissiveIntensity: 0.12
+            emissiveIntensity: 0.12,
+            side: THREE.DoubleSide
           });
           addRetroBody(mat);
           child.material = mat;
         }
+        
+        child.castShadow = true;
+        child.receiveShadow = true;
+        console.log(`[Loader] Mesh: "${child.name}" hasOrigTex=${hasOrigTex}`);
       }
     });
     
     initializeTendrils();
     
-    // Setup animation mixer
     if (fbx.animations && fbx.animations.length > 0) {
       mixer = new THREE.AnimationMixer(fbx);
       const action = mixer.clipAction(fbx.animations[0]);
@@ -730,13 +767,25 @@
     } else {
       statusEl.textContent = "モデルをロード完了。（アニメーションなし）";
     }
-  }, (xhr) => {
-    const pct = Math.round((xhr.loaded / xhr.total) * 100);
-    statusEl.textContent = `モデルをロード中: ${pct}%`;
-  }, (err) => {
-    statusEl.textContent = "モデルのロードに失敗しました。";
-    console.error("FBX loading error:", err);
-  });
+  }
+
+  // Try Swimming.fbx first, fallback to ACharacter.fbx
+  loadModel('Swimming.fbx')
+    .catch(() => {
+      console.warn('[Loader] Swimming.fbx failed, falling back to ACharacter.fbx');
+      return loadModel('ps2-psx-lowpoly-character/source/ACharacter.fbx');
+    })
+    .then(fbx => setupModel(fbx))
+    .catch(err => {
+      console.error('[Loader] All models failed:', err);
+      statusEl.textContent = "モデルのロードに失敗しました。";
+      // Fallback: show a simple cube
+      const fallbackGeo = new THREE.BoxGeometry(0.8, 1.6, 0.5);
+      const fallbackMat = new THREE.MeshStandardMaterial({ color: 0x8a9ab5, flatShading: true, emissive: 0x0c0608, emissiveIntensity: 0.3 });
+      fbxModel = new THREE.Mesh(fallbackGeo, fallbackMat);
+      fbxModel.position.set(0, 3.0, 0);
+      scene.add(fbxModel);
+    });
 
   // --- Floating Disembodied Orbits (Eyes observing the body parts) ---
   function createFloatingEye() {
@@ -1549,7 +1598,58 @@
     }
   });
 
-  // --- Calculations for Onset Detection ---
+  // --- Advanced Audio Onset Detection for Compressed Music ---
+  // Uses spectral flux, adaptive threshold, multi-band onset detection
+  
+  // --- Spectral history for flux computation ---
+  const SPECTRAL_BINS = 256;
+  let prevSpectrum = new Float32Array(SPECTRAL_BINS);
+  let spectralFlux = 0;
+  
+  // Adaptive threshold (running median approximation via exponential moving avg)
+  let adaptiveThreshold = 0;
+  const ADAPTIVE_RATE = 0.02;
+  
+  // Multi-band onset accumulators
+  let bassOnset = 0, midOnset = 0, trebleOnset = 0;
+  let bassOnsetDecay = 0, midOnsetDecay = 0, trebleOnsetDecay = 0;
+  
+  // Beat tracking
+  let beatPhase = 0;
+  let beatInterval = 0.5; // estimated BPM interval
+  let lastBeatTime = 0;
+  let beatConfidence = 0;
+  
+  // Crest factor (peak-to-RMS ratio for percussiveness)
+  let crestFactor = 0;
+  
+  // Spectral centroid (brightness of sound)
+  let spectralCentroid = 0;
+  
+  // Onset strength (continuous, not binary)
+  let onsetStrength = 0;
+  
+  // Perceptual sharpness (high-freq emphasis)
+  let perceptualSharpness = 0;
+  
+  // Smoothed energy bands for visual use
+  let smoothBass = 0, smoothMid = 0, smoothTreble = 0;
+  
+  // History buffer for adaptive threshold
+  const THRESHOLD_HISTORY = 43; // ~1 second at 43fps
+  let thresholdHistory = new Float32Array(THRESHOLD_HISTORY);
+  let thresholdIdx = 0;
+  
+  // Onset memory for visual triggers
+  let onsetMemory = { bass: 0, mid: 0, treble: 0, any: 0 };
+  let prevOnsetMemory = { bass: 0, mid: 0, treble: 0, any: 0 };
+  
+  // Decay constants
+  const ONSET_DECAY_BASS = 4.5;
+  const ONSET_DECAY_MID = 6.0;
+  const ONSET_DECAY_TREBLE = 8.0;
+  const ONSET_DECAY_ANY = 3.5;
+
   let fastEnv = 0, slowEnv = 0, surgeEnergy = 0;
   let hueAccum = 0;
   let corruptionRaw = 0;
@@ -1557,27 +1657,140 @@
 
   function getAudioLevels(customFreqData) {
     let source = customFreqData || freqData;
-    if (source) {
-      const n = source.length;
-      let bass = 0, mid = 0, treble = 0;
-      const bassEnd = Math.floor(n * 0.12), midEnd = Math.floor(n * 0.5);
+    if (!source) return { bass: 0, mid: 0, treble: 0, spectralFlux: 0, onsetStrength: 0, crestFactor: 0, spectralCentroid: 0, perceptualSharpness: 0 };
+    
+    const n = source.length;
+    
+    // --- Multi-band energy ---
+    const bassEnd = Math.floor(n * 0.08);
+    const lowMidEnd = Math.floor(n * 0.18);
+    const midEnd = Math.floor(n * 0.45);
+    
+    let bass = 0, lowMid = 0, mid = 0, treble = 0;
+    let rmsSum = 0, peakVal = 0;
+    let weightedSum = 0, totalEnergy = 0;
+    let highFreqSum = 0, highFreqCount = 0;
+    
+    for (let i = 0; i < n; i++) {
+      const v = source[i] / 255;
+      rmsSum += v * v;
+      if (v > peakVal) peakVal = v;
       
-      for (let i = 0; i < bassEnd; i++) bass += source[i];
-      for (let i = bassEnd; i < midEnd; i++) mid += source[i];
-      for (let i = midEnd; i < n; i++) treble += source[i];
+      if (i < bassEnd) bass += v;
+      else if (i < lowMidEnd) lowMid += v;
+      else if (i < midEnd) mid += v;
+      else treble += v;
       
-      bass /= (bassEnd * 255); 
-      mid /= ((midEnd - bassEnd) * 255); 
-      treble /= ((n - midEnd) * 255);
+      // Spectral centroid
+      weightedSum += v * i;
+      totalEnergy += v;
       
-      // Dynamic expansion to handle compressed -8.6 LUFS audio
-      bass = Math.pow(Math.max(0, (bass - 0.35) / 0.65), 2.8);
-      mid = Math.pow(Math.max(0, (mid - 0.35) / 0.65), 2.8);
-      treble = Math.pow(Math.max(0, (treble - 0.30) / 0.70), 2.8);
-      
-      return { bass, mid, treble };
+      // Perceptual sharpness (high freq emphasis)
+      if (i > n * 0.6) {
+        highFreqSum += v * (i / n);
+        highFreqCount++;
+      }
     }
-    return { bass: 0, mid: 0, treble: 0 };
+    
+    bass /= bassEnd * 255;
+    lowMid /= (lowMidEnd - bassEnd) * 255;
+    mid /= (midEnd - bassEnd) * 255;
+    treble /= (n - midEnd) * 255;
+    
+    const rms = Math.sqrt(rmsSum / n);
+    crestFactor = peakVal / Math.max(rms, 0.001);
+    spectralCentroid = totalEnergy > 0 ? weightedSum / (totalEnergy * n) : 0;
+    perceptualSharpness = highFreqCount > 0 ? highFreqSum / highFreqCount : 0;
+    
+    // --- Spectral Flux (frame-to-frame difference) ---
+    let flux = 0;
+    let fluxBass = 0, fluxMid = 0, fluxTreble = 0;
+    const binSize = n / SPECTRAL_BINS;
+    
+    for (let i = 0; i < SPECTRAL_BINS && i < n; i++) {
+      const binIdx = Math.min(Math.floor(i * binSize), n - 1);
+      const curr = source[binIdx] / 255;
+      const prev = prevSpectrum[i];
+      const diff = curr - prev;
+      
+      // Half-wave rectification: only count increases (onsets)
+      if (diff > 0) {
+        flux += diff * diff; // squared for emphasis
+        if (i < SPECTRAL_BINS * 0.08) fluxBass += diff;
+        else if (i < SPECTRAL_BINS * 0.45) fluxMid += diff;
+        else fluxTreble += diff;
+      }
+      prevSpectrum[i] = curr;
+    }
+    
+    spectralFlux = Math.sqrt(flux);
+    
+    // Normalize sub-band flux
+    fluxBass /= (SPECTRAL_BINS * 0.08);
+    fluxMid /= (SPECTRAL_BINS * 0.37);
+    fluxTreble /= (SPECTRAL_BINS * 0.55);
+    
+    // --- Adaptive threshold ---
+    thresholdHistory[thresholdIdx] = spectralFlux;
+    thresholdIdx = (thresholdIdx + 1) % THRESHOLD_HISTORY;
+    
+    let threshSum = 0;
+    for (let i = 0; i < THRESHOLD_HISTORY; i++) threshSum += thresholdHistory[i];
+    const medianThresh = threshSum / THRESHOLD_HISTORY;
+    adaptiveThreshold = medianThresh * 1.4; // threshold = 1.4x running average
+    
+    // --- Onset detection (flux exceeds adaptive threshold) ---
+    const bassThresh = adaptiveThreshold * 0.6;
+    const midThresh = adaptiveThreshold * 0.8;
+    const trebleThresh = adaptiveThreshold * 1.0;
+    
+    const rawBassOnset = fluxBass > bassThresh ? fluxBass - bassThresh : 0;
+    const rawMidOnset = fluxMid > midThresh ? fluxMid - midThresh : 0;
+    const rawTrebleOnset = fluxTreble > trebleThresh ? fluxTreble - trebleThresh : 0;
+    const rawAnyOnset = Math.max(rawBassOnset, rawMidOnset, rawTrebleOnset);
+    
+    // Smooth onset spikes with exponential decay
+    bassOnsetDecay = Math.max(rawBassOnset, bassOnsetDecay * 0.92);
+    midOnsetDecay = Math.max(rawMidOnset, midOnsetDecay * 0.88);
+    trebleOnsetDecay = Math.max(rawTrebleOnset, trebleOnsetDecay * 0.85);
+    onsetStrength = Math.max(rawAnyOnset, onsetStrength * 0.9);
+    
+    // Store onset memory for visual triggers
+    prevOnsetMemory.bass = onsetMemory.bass;
+    prevOnsetMemory.mid = onsetMemory.mid;
+    prevOnsetMemory.treble = onsetMemory.treble;
+    prevOnsetMemory.any = onsetMemory.any;
+    
+    onsetMemory.bass = rawBassOnset;
+    onsetMemory.mid = rawMidOnset;
+    onsetMemory.treble = rawTrebleOnset;
+    onsetMemory.any = rawAnyOnset;
+    
+    // --- Compressed audio expansion (aggressive) ---
+    bass = Math.pow(Math.max(0, (bass - 0.30) / 0.70), 2.2);
+    lowMid = Math.pow(Math.max(0, (lowMid - 0.30) / 0.70), 2.4);
+    mid = Math.pow(Math.max(0, (mid - 0.32) / 0.68), 2.4);
+    treble = Math.pow(Math.max(0, (treble - 0.28) / 0.72), 2.6);
+    
+    // Smooth energy for stable visual use
+    smoothBass += (bass - smoothBass) * 0.15;
+    smoothMid += (mid - smoothMid) * 0.15;
+    smoothTreble += (treble - smoothTreble) * 0.15;
+    
+    return { 
+      bass, mid, treble, lowMid,
+      spectralFlux: spectralFlux * 2.0,
+      onsetStrength: onsetStrength * 3.0,
+      crestFactor,
+      spectralCentroid,
+      perceptualSharpness,
+      bassOnset: bassOnsetDecay * 4.0,
+      midOnset: midOnsetDecay * 3.5,
+      trebleOnset: trebleOnsetDecay * 3.0,
+      rawFluxBass: fluxBass,
+      rawFluxMid: fluxMid,
+      rawFluxTreble: fluxTreble
+    };
   }
 
   function updateRetroUniforms(mat, t, a, mut) {
@@ -1600,14 +1813,20 @@
 
   // --- Render Frame Function ---
   function drawFrame(time, dt, customFreqData) {
-    const { bass, mid, treble } = getAudioLevels(customFreqData);
+    const levels = getAudioLevels(customFreqData);
+    const { bass, mid, treble, lowMid, spectralFlux, onsetStrength, crestFactor, spectralCentroid, perceptualSharpness, bassOnset, midOnset, trebleOnset } = levels;
     const audioEnergy = (bass + mid + treble) / 3;
 
-    // Detect transients
-    fastEnv += (audioEnergy - fastEnv) * Math.min(1, dt * 9.0);
-    slowEnv += (audioEnergy - slowEnv) * Math.min(1, dt * 0.55);
-    const onset = Math.max(0, fastEnv - slowEnv) * 3.4;
-    surgeEnergy = Math.max(onset, surgeEnergy - dt * 1.1);
+    // Advanced onset detection for compressed audio
+    // Use spectral flux as primary onset signal
+    const onset = spectralFlux;
+    surgeEnergy = Math.max(onset, surgeEnergy - dt * 1.8);
+    
+    // Multi-band onset triggers (detect new onsets, not sustained)
+    const bassHit = onsetMemory.bass > 0.01 && prevOnsetMemory.bass < 0.005;
+    const midHit = onsetMemory.mid > 0.01 && prevOnsetMemory.mid < 0.005;
+    const trebleHit = onsetMemory.treble > 0.01 && prevOnsetMemory.treble < 0.005;
+    const anyHit = onsetMemory.any > 0.01 && prevOnsetMemory.any < 0.005;
 
     const progress = getProgress(time);
 
@@ -1617,12 +1836,12 @@
     const variety = wave1 * 0.6 + wave2 * 0.4;
 
     const rateMul = corruptSpeedSlider.value / 50;
-    corruptionRaw += dt * (baseRate * rateMul * 0.85 + audioEnergy * 0.005 + onset * 0.006);
+    corruptionRaw += dt * (baseRate * rateMul * 0.85 + audioEnergy * 0.008 + spectralFlux * 0.012);
     const corr = Math.min(corruptionRaw, 1.2);
     const corrVis = Math.min(corruptionRaw, 1.0);
     
     corruptValEl.textContent = Math.round(corrVis * 100) + "%" + (corruptionRaw > 1.0 ? " ++" : "");
-    hueAccum += dt * 0.045 * (0.55 + variety * 0.9);
+    hueAccum += dt * 0.045 * (0.55 + variety * 0.9) + spectralFlux * 0.003;
 
     // Fog colors
     const fogA = new THREE.Color(0x0f0e0d); // sky misty grey
@@ -1680,15 +1899,21 @@
     }
 
     // Camera field of view expands on transients
-    camera.fov = 50 + surgeEnergy * 6.5;
+    camera.fov = 50 + surgeEnergy * 6.5 + onsetStrength * 3.0;
     camera.updateProjectionMatrix();
+    
+    // Camera shake on strong onsets
+    if (onsetStrength > 0.2) {
+      camera.position.x += (Math.random() - 0.5) * onsetStrength * 0.15;
+      camera.position.y += (Math.random() - 0.5) * onsetStrength * 0.1;
+    }
 
     // Lighting updates
     key.color.setHSL(THREE.MathUtils.lerp(0.58, hueAccum % 1, Math.min(corr, 1)), THREE.MathUtils.lerp(0.15, 0.8, Math.min(corr,1)), 0.55);
     fill.color.setHSL(THREE.MathUtils.lerp(0.52, (hueAccum + 0.5) % 1, Math.min(corr, 1)), THREE.MathUtils.lerp(0.25, 0.85, Math.min(corr,1)), 0.4);
-    key.intensity = 1.1 + bass * 1.6 + Math.min(corr, 1) * 1.2 + surgeEnergy * 1.2;
-    fill.intensity = 0.9 + mid * 1.2;
-    underLight.intensity = 0.6 + corr * 1.8 + bass * 0.6 + surgeEnergy * 0.8;
+    key.intensity = 1.1 + bass * 1.6 + Math.min(corr, 1) * 1.2 + surgeEnergy * 1.2 + bassOnset * 1.5;
+    fill.intensity = 0.9 + mid * 1.2 + midOnset * 1.0;
+    underLight.intensity = 0.6 + corr * 1.8 + bass * 0.6 + surgeEnergy * 0.8 + onsetStrength * 0.8;
 
     // Sea displacement uniforms
     seaUniforms.uTime.value = time; 
@@ -1701,8 +1926,8 @@
     const deadSkin = new THREE.Color(0x101218);
     skinMat.color.copy(normalSkin).lerp(deadSkin, progress);
     
-    skinMat.emissive.setHSL(0.6, 1.0, progress * 0.35 + bass * 0.15);
-    skinMat.emissiveIntensity = 0.1 + progress * 1.6 + bass * 0.4;
+    skinMat.emissive.setHSL(0.6 + spectralCentroid * 0.3, 1.0, progress * 0.35 + bass * 0.15 + bassOnset * 0.1);
+    skinMat.emissiveIntensity = 0.1 + progress * 1.6 + bass * 0.4 + onsetStrength * 0.5;
     
     updateRetroUniforms(skinMat, time, Math.min(corr, 1.2) * 0.045 + bass * 0.015, progress);
     updateRetroUniforms(lesionMat, time, Math.min(corr, 1.2) * 0.06 + bass * 0.025, progress);
@@ -1712,6 +1937,12 @@
       const sinkSpeed = sinkSpeedSlider.value / 1000;
       fbxModel.position.y -= dt * (sinkSpeed * 4.5) * (1.0 + bass * 1.1);
       fbxModel.rotation.z = Math.PI / 2;
+      
+      // Bass-hit camera/model shake
+      if (bassOnset > 0.3) {
+        fbxModel.position.x += (Math.random() - 0.5) * bassOnset * 0.08;
+        fbxModel.position.z += (Math.random() - 0.5) * bassOnset * 0.05;
+      }
 
       // Irreversible separation (parts drift far apart into deep space)
       const separation = progress * 1.4;
@@ -1720,7 +1951,7 @@
         const bone = bonesMap[key];
         const defPos = defaultBonePositions[key];
         if (bone && defPos) {
-          const amount = separation * 0.5 + corr * 0.15 + bass * 0.08;
+          const amount = separation * 0.5 + corr * 0.15 + bass * 0.08 + bassOnset * 0.12;
           let offset = new THREE.Vector3();
           
           if (key === 'head') offset.set(0, amount * 1.6, 0);
@@ -1774,14 +2005,14 @@
         eye.position.z = hPos.z + r * Math.cos(theta);
         
         eye.lookAt(camera.position);
-        eye.children[1].material.emissiveIntensity = 1.3 + bass * 1.4 + corr * 1.0;
+        eye.children[1].material.emissiveIntensity = 1.3 + bass * 1.4 + corr * 1.0 + midOnset * 1.2;
       } else {
         eye.visible = false;
       }
     });
 
     // Mouth animation (follows head position if present)
-    const mouthOpen = 0.5 + Math.abs(Math.sin(time * 0.6)) * 0.5 + bass * 1.2 + Math.min(corr, 1.0) * 0.8;
+    const mouthOpen = 0.5 + Math.abs(Math.sin(time * 0.6)) * 0.5 + bass * 1.2 + Math.min(corr, 1.0) * 0.8 + bassOnset * 0.8;
     mouthDeep.scale.set(1, Math.min(1.6, mouthOpen), 1);
     
     if (bonesMap.head) {
@@ -1804,7 +2035,7 @@
     const lesionEmerge = THREE.MathUtils.smoothstep(corr, 0.12, 0.55);
     lesions.forEach(m => {
       const ph = m.userData.phase + time * 0.7;
-      m.scale.setScalar(lesionEmerge * (1.0 + Math.sin(ph) * 0.18 * (0.3 + corr)));
+      m.scale.setScalar(lesionEmerge * (1.0 + Math.sin(ph) * 0.18 * (0.3 + corr) + midOnset * 0.3));
       
       // Position lesions near hips/torso
       const hPos = new THREE.Vector3();
@@ -1852,7 +2083,7 @@
       dPos.array[i * 3 + 1] = yy;
     }
     dPos.needsUpdate = true;
-    droolMat.opacity = 0.4 + bass * 0.5 + Math.min(corr, 1.0) * 0.4;
+    droolMat.opacity = 0.4 + bass * 0.5 + Math.min(corr, 1.0) * 0.4 + bassOnset * 0.3;
 
     // Organic background dust update
     const posAttr = bgParticles.geometry.attributes.position;
@@ -1864,7 +2095,7 @@
     }
     posAttr.needsUpdate = true;
     pMat.color.setHSL(THREE.MathUtils.lerp(0.06, hueAccum % 1, Math.min(corr, 1.0)), THREE.MathUtils.lerp(0.2, 0.75, Math.min(corr, 1.0)), 0.55);
-    pMat.opacity = 0.3 + Math.min(corr, 1.0) * 0.35 + treble * 0.15 + surgeEnergy * 0.15;
+    pMat.opacity = 0.3 + Math.min(corr, 1.0) * 0.35 + treble * 0.15 + surgeEnergy * 0.15 + trebleOnset * 0.2;
 
     // Update Splash/Bubble particles
     if (splashTriggered && bubbleMat.opacity > 0.01) {
@@ -1888,8 +2119,12 @@
       bubbleMat.opacity -= dt * 0.15; 
     }
 
-    // --- Shockwave Rings update ---
-    if (onset > 0.3 && time - lastRingTime > 0.3) {
+    // --- Shockwave Rings update (bass-driven) ---
+    if (bassHit && time - lastRingTime > 0.25) {
+      triggerRing(time);
+    }
+    // Extra rings on strong bass hits
+    if (bassOnset > 0.5 && time - lastRingTime > 0.15) {
       triggerRing(time);
     }
     rings.forEach(r => {
@@ -1919,7 +2154,7 @@
         g.mesh.rotation.y += dt * (0.2 + bass * 0.5);
         g.mesh.rotation.z += dt * 0.15;
         
-        g.mat.opacity = sp * 0.35 * (0.5 + bass * 0.5 + corr * 0.3);
+        g.mat.opacity = sp * 0.35 * (0.5 + bass * 0.5 + corr * 0.3 + onsetStrength * 0.4);
         g.mat.color.setHSL((hueAccum + i * 0.05) % 1, 0.85, 0.45 + bass * 0.15);
         g.mesh.scale.setScalar(sp * (1.0 + corr * 0.3));
       } else {
@@ -1933,11 +2168,12 @@
       if (i < beamActive) {
         b.mesh.visible = true;
         const phase = Math.sin(time * 0.5 + b.seed) * 0.5 + 0.5;
-        b.mat.opacity = phase * (0.15 + bass * 0.3 + surgeEnergy * 0.25) * Math.min(corr + 0.15, 1.0);
+        b.mat.opacity = phase * (0.15 + bass * 0.3 + surgeEnergy * 0.25 + trebleOnset * 0.3) * Math.min(corr + 0.15, 1.0);
         b.mat.color.setHSL((hueAccum * 0.7 + i * 0.12) % 1, 0.9, 0.5);
         b.mesh.position.y = Math.sin(time * 0.3 + b.seed) * 3;
-        b.mesh.scale.x = 1.0 + bass * 3.0 + surgeEnergy * 2.0;
+        b.mesh.scale.x = 1.0 + bass * 3.0 + surgeEnergy * 2.0 + trebleOnset * 2.0;
         b.mesh.scale.z = b.mesh.scale.x;
+        b.mesh.scale.y = 1.0 + trebleOnset * 1.5;
       } else {
         b.mesh.visible = false;
       }
@@ -1949,7 +2185,7 @@
       if (i < sheetActive) {
         s.mesh.visible = true;
         const wave = Math.sin(time * 0.2 + s.seed + i * 1.5) * 0.5 + 0.5;
-        s.mat.opacity = wave * 0.08 * (0.3 + mid * 0.7 + corr * 0.4);
+        s.mat.opacity = wave * 0.08 * (0.3 + mid * 0.7 + corr * 0.4 + trebleOnset * 0.5);
         s.mat.color.setHSL((hueAccum * 0.5 + i * 0.25) % 1, 0.75, 0.35);
         s.mesh.position.y = s.baseY + Math.sin(time * 0.15 + s.seed) * 2;
         s.mesh.rotation.z = time * 0.02 * (i % 2 === 0 ? 1 : -1);
@@ -1960,7 +2196,7 @@
 
     // --- Spiral Vortex Particles update ---
     const vortexOpacity = THREE.MathUtils.smoothstep(corr, 0.05, 0.4) * 0.6;
-    vortexMat.opacity = vortexOpacity * (0.3 + bass * 0.5 + surgeEnergy * 0.3);
+    vortexMat.opacity = vortexOpacity * (0.3 + bass * 0.5 + surgeEnergy * 0.3 + midOnset * 0.4);
     vortexMat.color.setHSL((hueAccum * 1.3) % 1, 0.85, 0.5);
     const vPos = vortexPoints.geometry.attributes.position;
     for (let i = 0; i < vortexCount; i++) {
@@ -1968,7 +2204,7 @@
       let vy = vPos.array[i * 3 + 1];
       let vr = vPos.array[i * 3 + 2];
       
-      angle += dt * (0.8 + bass * 1.5 + corr * 0.5);
+      angle += dt * (0.8 + bass * 1.5 + corr * 0.5 + midOnset * 2.0);
       vy += dt * vortexVel[i * 3 + 1] * (1.0 + bass);
       vr += dt * 0.05 * Math.sin(time * 0.3 + i);
       
@@ -2072,8 +2308,8 @@
 
     // Set post uniforms
     postUniforms.uTime.value = time;
-    postUniforms.uCorruption.value = Math.min(corr, 1.2);
-    postUniforms.uBass.value = bass;
+    postUniforms.uCorruption.value = Math.min(corr, 1.2) + onsetStrength * 0.3;
+    postUniforms.uBass.value = bass + bassOnset * 0.5;
     postUniforms.uSurge.value = Math.min(surgeEnergy, 1.0);
     
     // Trail feedback amount rises irreversibly over time (burns screen details)
